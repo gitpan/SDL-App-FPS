@@ -13,6 +13,7 @@ use SDL::App::FPS qw/
   BUTTON_MOUSE_RIGHT
   /;
 use SDL::Event;
+use SDL::Constants;
 use SDL::App::FPS::Color qw/BLACK WHITE/;
 
 use vars qw/@ISA/;

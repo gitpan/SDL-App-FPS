@@ -13,6 +13,7 @@ use vars qw/@ISA @EXPORT_OK $VERSION/;
 @ISA = qw/SDL::App::FPS::Thingy Exporter/;
 
 use SDL::Event;
+use SDL::Constants;
 
 $VERSION = '0.02';
 

@@ -259,6 +259,11 @@ SDL::App::FPS:
   * max_fps == 0 disables framerate cap (for benchmarks)
   * removed obsolete cap_fps parameter
 
+2003-03-21 v0.18 Tels - 265 tests
+  * made compatible to SDL_perl 1.20.2 (actually, nothing had to be done :)
+  * The mandel fractal takes now 6.8 instead of 9.5 seconds, just be switching
+    to SDL_perl 1.20.2 :-)
+
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

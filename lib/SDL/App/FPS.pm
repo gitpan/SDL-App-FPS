@@ -28,7 +28,7 @@ use vars qw/@ISA $VERSION @EXPORT_OK/;
 
 @EXPORT_OK = qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE/;
 
-$VERSION = '0.17';
+$VERSION = '0.18';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -1076,6 +1076,31 @@ sub watch_event
 
   }
 
+sub screenshot
+  {
+  my $self = shift;
+ 
+  my $app = $self->{_app};
+  require File::Spec;
+
+  my $path = shift || File::Spec->curdir();
+  my $name = shift;
+
+  if (!defined $name)
+    {
+    # find first free name
+    $name = $app->{screenshot_name} || 'screenshot0000';
+    $name++ while (-e File::Spec->catfile($path,$name));
+    $app->{screenshot_name} = $name; $app->{screenshot_name}++;
+    }
+  $name .= '.bmp' unless $name =~ /\.bmp$/;
+  print ref($app->{app})," $path $name => ",
+    File::Spec->catfile($path,$name),"\n";
+
+#  SDL::SaveBMP( $app->{app}, File::Spec->catfile($path,$name) );
+  $app->{app}->save_bmp( File::Spec->catfile($path,$name) );
+  }
+
 1;
 
 __END__
@@ -1436,6 +1461,17 @@ reference to additional data that will also be saved. See also L<load()>.
 Loads the application state from a file. If additional data was passed to
 L<save()>, then $data will contain a references to this data afterwards.
 C<$error> will contain any error that might occur, or undef.
+
+=item screenshot
+
+	$app->screenshot($path,$filename);
+
+Save a screenshot in BMP format of the current surface to a file.
+
+C<$path> and C<$filename> are optional, default is the current directory and
+filenames named like 'screenshot_0000.bmp'. The first non-existing filename
+will be used if C<$filename> is undef, otherwise the caller is responsible
+for finding a free filename.
 
 =item main_loop()
 

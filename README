@@ -46,9 +46,16 @@ Installation
 * You need at least SDL for Perl <http://www.sdlperl.org/> and SDL itself from
   <http://www.libsdl.org/>.
 
-* untar/ungzip the package (replace 0.12 with the version you got)
+* Warning! v0.18 needs at least SDL_perl v1.20.2 which is not an official
+  release (but a fork by me) and can be found at:
+	
+	http://bloodgate.com/perl/sdl/sdl_perl.html
+ 
+  SDL_perl 2.0 beta2 (current as I write this) does _not_ work!
+ 
+* untar/ungzip the package (replace 0.18 with the version you got)
 
-	tar -xzf SDL-App-FPS-0.12.tar.gz
+	tar -xzf SDL-App-FPS-0.18.tar.gz
 
 * Check the signature. Download my key from http://bloodgate.com/tels.asc or
   from my CPAN directory. Then do in the build directory (where you unwrapped

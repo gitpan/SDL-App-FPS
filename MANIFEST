@@ -20,7 +20,6 @@ examples/opengl.pl
 examples/mouse.pl
 examples/colors.pl
 examples/keycheck.pl
-examples/modelview.pl
 examples/lib/SDL/App/FPS/Demo.pm
 examples/lib/SDL/App/FPS/Empty.pm
 examples/lib/SDL/App/FPS/MyEvent.pm
@@ -30,7 +29,6 @@ examples/lib/SDL/App/FPS/MyMouse.pm
 examples/lib/SDL/App/FPS/MyColors.pm
 examples/lib/SDL/App/FPS/MyKeyCheck.pm
 examples/lib/SDL/App/FPS/MyOpenGL.pm
-examples/lib/SDL/App/FPS/MyMD2.pm
 Makefile.PL
 FPS.xs
 lib/SDL/App/FPS.pm

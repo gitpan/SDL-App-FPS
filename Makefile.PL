@@ -6,7 +6,6 @@ WriteMakefile(
     'VERSION_FROM'	=> 'lib/SDL/App/FPS.pm', # finds $VERSION
     'PREREQ_PM'		=> {
 			SDL => '1.20.0',
-			Games::3D::Model => 0.02,
 			}, # e.g., Module::Name => 1.1
     'LIBS'		=> [ '-lSDL' ], # e.g., '-lm'
     'DEFINE'		=> '', # e.g., '-DHAVE_SOMETHING'

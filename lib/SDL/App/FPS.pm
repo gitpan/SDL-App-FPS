@@ -28,7 +28,7 @@ use vars qw/@ISA $VERSION @EXPORT_OK/;
 
 @EXPORT_OK = qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE/;
 
-$VERSION = '0.16';
+$VERSION = '0.17';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -85,13 +85,12 @@ sub _init
     depth => 32,
     fullscreen => 0,
     resizeable => 1,
-    max_fps => 60,
-    cap_fps => 1,
+    max_fps => 0,
     time_warp => 1,
     gl => 0,
     };
   foreach my $key (qw/
-     gl width height depth fullscreen max_fps cap_fps time_warp resizeable
+     gl width height depth fullscreen max_fps time_warp resizeable
     /) 
     {
     $opt->{$key} = $def->{$key} unless exists $opt->{$key};
@@ -102,7 +101,7 @@ sub _init
   
   # limit to some sensible value
   $opt->{max_fps} = 500 if $opt->{max_fps} > 500;
-  $opt->{max_fps} = 1 if $opt->{max_fps} < 1;
+  $opt->{max_fps} = 0 if $opt->{max_fps} < 0;
   $opt->{width} = 16 if $opt->{width} < 16;
   $opt->{height} = 16 if $opt->{height} < 16;
   $opt->{depth} = 8 if $opt->{depth} < 8;
@@ -112,7 +111,8 @@ sub _init
   $app->{time_warp} = $opt->{time_warp};	# copy to modify it later
 
   # setup the framerate monitoring
-  $app->{min_time} = 1000 / $opt->{max_fps};
+  $app->{min_time} = 0;
+  $app->{min_time} = 1000 / $opt->{max_fps} if $opt->{max_fps} > 0;
   # contains the FPS avaraged over the last second
   $app->{current_fps} = 0;
   $app->{frames} = 0;				# number of frames
@@ -145,7 +145,8 @@ sub option
     $opt->{$key} = shift;
     if ($key eq 'max_fps')
       {
-      $app->{min_time} = 1000 / $opt->{max_fps};
+      $app->{min_time} = 0;
+      $app->{min_time} = 1000 / $opt->{max_fps} if $opt->{max_fps} > 0;
       }
     if ($key eq 'fullscreen')
       {
@@ -1401,9 +1402,6 @@ Get's a hash ref with options, the following options are supported:
 	height      the width of the application window in pixel
 	depth       the depth of the screen (colorspace) in bits
 	max_fps     maximum number of FPS to do (save CPU cycles)
-	cap_fps     use a better model to cap the FPS to the desired
-		    rate (default), set to 0 to disable - but you don't want
-                    to do this - trust me)
 	resizeable  when true, the application window will be resizable
 		    You should install an event handler to watch for events
 		    of the type SDL_VIDEORESIZE
@@ -1413,8 +1411,12 @@ Please note that, due to the resulution of the timer, the maximum achivable FPS
 with capping is about 200-300 FPS even with an empty draw routine. Of course,
 my machine could do about 50000 FPS; but then it hogs 100% of the CPU. Thus
 the framerate capping might not be accurate and cap the rate at a much lower
-rate than you want. However, only max_fps > 100 is affected, anything below
+rate than you want. However, only C<max_fps> > 100 is affected, anything below
 100 works usually as intended.
+
+Set C<max_fps> to 0 to disable the frame-rate cap. This means the app will
+burn all the CPU time and try to achive as much fps as possible. This is
+not recommended except for benchmarking!
 
 C<new()> calls L<pre_init_handler()> before creating the SDL application, and
 L<post_init_handler()> afterwards. So you can override thess two for your own

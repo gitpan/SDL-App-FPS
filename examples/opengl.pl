@@ -15,7 +15,7 @@ BEGIN
 use SDL::App::FPS::MyOpenGL;
 
 my $options = { 
- width => 640, height => 480, depth => 16, gl => 1, max_fps => 60
+ width => 640, height => 480, depth => 16, gl => 1, max_fps => 0
  };
 
 print

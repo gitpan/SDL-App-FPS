@@ -9,7 +9,7 @@ SDL::App::FPS XS code (C) by Tels <http://bloodgate.com/perl/>
 */
 
 /* our framerate monitor memory */
-#define FRAMES_MAX 2048
+#define FRAMES_MAX 4096
 unsigned int frames[FRAMES_MAX] = { 0 };
 /* two pointers into the ringbuffer frames[] */
 unsigned int frames_start = 0;
@@ -51,20 +51,25 @@ _delay(min_time,base_ticks)
     double framerate;
 
     now = SDL_GetTicks() - base_ticks;
-    to_sleep = min_time - wake_time - (now - last) - 1;
 
-    # sometimes Delay() does not seem to work, so retry until it we sleeped
-    # long enough
-    while (to_sleep > 2)
+    if (min_time > 0)
       {
-      SDL_Delay(to_sleep);
-      now = SDL_GetTicks() - base_ticks;
-      to_sleep = min_time - (now - last);
-      }
-    wake_time = 0;
-    if (now - last > min_time)
-      {
-      wake_time = now - last - min_time;
+      to_sleep = min_time - wake_time - (now - last) - 1;
+
+      # sometimes Delay() does not seem to work, so retry until it we sleeped
+      # long enough
+      while (to_sleep > 2)
+        {
+        SDL_Delay(to_sleep);
+        now = SDL_GetTicks() - base_ticks;
+        to_sleep = min_time - (now - last);
+        }
+      wake_time = 0;
+
+      if (now - last > min_time)
+        {
+        wake_time = now - last - min_time;
+        }
       }
     diff = now - last;
     ST(0) = newSViv(now);
@@ -120,13 +125,13 @@ _delay(min_time,base_ticks)
         frame_cnt = 1024 - (frames_start - frames_end - 1);
         }
       /* does it make sense to calc. fps? */
-      if (frame_cnt > 10)
+      if (frame_cnt > 20)
         {
         framerate = (double)(10000 * frame_cnt / time) / 10;
         if (min_fps > framerate) { min_fps = framerate; }
         if (max_fps < framerate) { max_fps = framerate; }
         if (diff > max_frame_time) { max_frame_time = diff; }
-        if (diff < min_frame_time) { min_frame_time = diff; }
+        if (diff < min_frame_time && diff > 0) { min_frame_time = diff; }
         }
       /* printf (" frames %i time %i fps %f\n",frame_cnt,time,framerate); 
       printf (" min %f max %f\n",min_fps,max_fps); */

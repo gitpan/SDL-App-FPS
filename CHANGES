@@ -254,6 +254,11 @@ SDL::App::FPS:
   * opengl example: fix secondary rotation (instead of secondary wiggling)
   * added modelview example: show MD2 models using Games::3D::Model
             
+2003-03-12 v0.17 Tels - 265 tests
+  * removed modelview from distribution: see http://bloodgate.com/perl/sdl
+  * max_fps == 0 disables framerate cap (for benchmarks)
+  * removed obsolete cap_fps parameter
+
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

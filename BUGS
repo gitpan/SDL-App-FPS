@@ -1,0 +1,17 @@
+
+############################################################################## 
+SDL::App::FPS:
+
+* freeze_time() destroys time warp ramping, it should save it and
+  unfreeze_time() should restore it
+* the time per frame currently (on my system) sways wildly from 11 to 47 ms
+  when trying to draw at most 60 fps. This probably accounts for the jerky
+  movement in the demo application. Not sure if this is a kernel-timer problem
+  or something in my code. I guess I need somehow sub-ms delay or at least an
+  delay routine that does not suddenly delay for 10 or 20 ms longer than it
+  should...(Hm, disabling xmms and any background app still does not help...)
+
+Please send me test-reports, your experiences with this and your ideas - I love
+to hear about my work!
+
+Tels <http://bloodgate.com/>

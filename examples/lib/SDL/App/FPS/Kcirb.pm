@@ -19,9 +19,7 @@ use vars qw/@ISA/;
 sub _kcirb_animate_rectangle
   {
   # this animates the moving ractangle
-  my $self = shift;
-
-  my $rect = $self->{kcirb}->{rect};
+  my ($self,$rect) = @_;
 
   # how much time elapsed since we started at start point
   my $time_elapsed = $self->current_time() - $rect->{now};
@@ -108,14 +106,24 @@ sub draw_frame
   # using pause() would be a bit more efficient, though 
   return if $self->time_is_frozen();
 
-  # undraw the rectangle at the current location
-  $self->_kcirb_draw_rectangle($self->{kcirb}->{rect},$self->{kcirb}->{black});
+  # undraw the rectangle(s) at the current location
+  foreach my $rect (@{$self->{kcirb}->{rectangles}})
+    {
+    $self->_kcirb_draw_rectangle($rect,$self->{kcirb}->{black});
+    }
 
-  # move it
-  $self->_kcirb_animate_rectangle();
+  # move them
+  # undraw the rectangle(s) at the current location
+  foreach my $rect (@{$self->{kcirb}->{rectangles}})
+    {
+    $self->_kcirb_animate_rectangle($rect);
+    }
 
-  # draw the rectangle at the current location
-  $self->_kcirb_draw_rectangle($self->{kcirb}->{rect},$self->{kcirb}->{color});
+  # redraw the rectangles at their current location
+  foreach my $rect (@{$self->{kcirb}->{rectangles}})
+    {
+    $self->_kcirb_draw_rectangle($rect,$rect->{color});
+    }
   
   # update the screen with the changes
   my $rect = SDL::Rect->new(
@@ -181,16 +189,31 @@ sub post_init_handler
   {
   my $self = shift;
  
+  $self->{kcirb}->{rectangles} = [];
+  
+  $self->{kcirb}->{black} = new SDL::Color (-r => 0, -g => 0, -b => 0);
+  $self->{kcirb}->{PI} = 3.141592654;
+
+  $self->add_timer(2000,-1, 3000, \&_kcirb_add_rect);
+  }
+
+sub _kcirb_add_rect
+  {
+  # add a rectangle to our list
+  my $self = shift;
+    
+  my $w = $self->width();
+  my $h = $self->height();
+
   my $k = { 
-    x => $self->option('width') / 2,
-    y => $self->option('height') / 2,
+    x => ($w / 2) + rand($w / 10),
+    y => ($h / 2) + rand($h / 10),
     w => 32,
     h => 16,
     angle => rand(360),
-    speed => rand(50)+200,			# in pixel/second
+    speed => rand(100)+150,			# in pixel/second
     now => $self->current_time(),
   };
-  $self->{kcirb}->{rect} = $k;
   
   # make it a perfect square, independ from screen resolution (works only
   # in fullscreen mode, of course)
@@ -198,10 +221,11 @@ sub post_init_handler
 
   $k->{x_s} = $k->{x};		 # start x
   $k->{y_s} = $k->{y};		 # start y
-  
-  $self->{kcirb}->{black} = new SDL::Color (-r => 0, -g => 0, -b => 0);
-  $self->{kcirb}->{color} = new SDL::Color (-r => 0xff, -g => 0xff, -b => 0);
-  $self->{kcirb}->{PI} = 3.141592654;
+  $k->{color} = new SDL::Color (
+   -r => int(rand(8)+1) * 0x20 - 1,		# 1f,3f,5f,7f,9f,bf,df,ff
+   -g => int(rand(8)+1) * 0x20 - 1,
+   -b => int(rand(8)+1) * 0x20 - 1);
+  push @{$self->{kcirb}->{rectangles}}, $k;
   }
 
 1;

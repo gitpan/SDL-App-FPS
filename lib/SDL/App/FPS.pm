@@ -12,11 +12,13 @@ use SDL;
 use SDL::App;
 use SDL::Event;
 
+use SDL::App::FPS::Timer;
+
 use Exporter;
 use vars qw/@ISA $VERSION/;
 @ISA = qw/Exporter/;
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 sub new
   {
@@ -97,6 +99,8 @@ sub _init
   $self->{fps_monitor_time} = 1000;		# 1 second (hardcode for now)
   $self->{ramp_warp_target} = 0;		# disable ramping
   $self->{ramp_warp_time} = 0;			# disable ramping
+  
+  $self->{timers} = {};				# none yet
 
   $self->{quit} = 0;				# don't let handle_events quit
   $self;
@@ -507,7 +511,11 @@ sub pause
         }
       foreach my $t (@_)
         {
-        return if ($t == $type);		# end pause
+        if ($t == $type)
+          {
+          $self->handle_event($self->{event});	# give handler a chance
+          return;
+          }
         }
       }
     }
@@ -521,9 +529,70 @@ sub main_loop
   # don't call handle_events() when there are no events? Does this matter?
   while (!$self->{quit} && $self->handle_events() == 0)
     {
+    $self->expire_timers() if scalar keys %{$self->{timers}} > 0; # no timers?
     $self->next_frame();		# update the screen and fps monitor
     }
   $self->quit_handler();
+  }
+
+sub add_timer
+  {
+  # add a timer to the list of timers
+  # The timer fires the first time after $time ms, then after each $delay ms
+  # for $count times. $count < 0 means fires infinity times. $callback must
+  # be a coderef, which will be called once the timer fires with:
+  # $coderef($timer->{id},$timer);
+  my $self = shift;
+  my ($time,$count,$delay,$callback) = @_;
+
+  my $timer = SDL::App::FPS::Timer->new( 
+    $time, $count, $delay, $self->{current_time}, $callback, $self);
+  return undef if $timer->count() == 0;		# timer fired once, and expired
+
+  # otherwise remember it
+  $self->{timers} = { $timer->{id} => $timer };
+  # return it's id
+  $timer->{id};
+  }
+
+sub expire_timers
+  {
+  # check all timers for whether they have expired (need to fire) or not
+  my $self = shift;
+
+  return 0 if scalar keys %{$self->{timers}} == 0;	# no timers?
+
+  my $now = $self->{current_time};			# timers are warped
+  foreach my $id (keys %{$self->{timers}})
+    {
+    $self->{timers}->{$id}->due($now);			# let timer fire
+    delete $self->{timers}->{$id}
+     if $self->{timers}->{$id}->count() == 0;		# remove any expired
+    }
+  }
+
+sub timers
+  {
+  # return amount of still active timers 
+  my $self = shift;
+
+  return scalar keys %{$self->{timers}};
+  }
+
+sub get_timer
+  {
+  # return ptr to a timer with id $id
+  my ($self,$id) = @_;
+
+  return unless exists $self->{timers}->{$id};
+  }
+
+sub remove_timer
+  {
+  # delete a timer with a specific id
+  my ($self,$id) = @_;
+
+  delete $self->{timers}->{$id};
   }
 
 ##############################################################################
@@ -621,6 +690,9 @@ applications.
 It is a good idea to store additional data under C<$self->{name_of_subclass}>,
 this way it does not interfere with changes in the base class.
 
+Also, when adding subroutines to your subclass, prefix them with '__' so that
+they do not interfere with changes in this base class.
+
 Do not access the data in the baseclass directly, always use the accessor
 methods!
 
@@ -669,7 +741,8 @@ Called by L<main_loop()> just before the application is exiting.
 
 =back
 
-The following methods need not be overriden except in very special cases:
+The following methods can be used, but need not be overriden except in very
+special cases:
 
 =over 2
 
@@ -737,29 +810,38 @@ Return the current height of the applications surface.
 
 Call the SDL::App's update method.
 
+=item add_timer()
+
+	$app->add_timer($time,$count,$delay,$callback);
+
+Adds a timer to the list of timers. When time is 0, the timer fires
+immidiately (calls $callback). When the count was 1, and time 0, then
+the timer will not be added to the list (it already expired) and undef will be
+returned. Otherwise the unique timer id will be returned.
+
+The timer will fire for the first time at C<$time> ms after the time it was
+added, and then wait C<$delay> ms between each shot. if C<$count> is positive,
+it gives the number of shots the timer fires, if it is negative, the timer
+will fire endlessly until it is removed.
+
+The timers added via add_timer() are coupled to the warped clock.
+
+=item get_timer()
+
+	$timer = $self->get_timer($timer_id);
+
+Given a timer id, returns the timer object or undef.
+
+=item timers()
+
+Return count of active timers.
+
 =item app()
 
 	my $sdl_app = $self->app();
 
 Return a pointer to the SDL application object. Usefull for calling it's
 methods.
-
-=item main_loop()
-
-	$app->main_loop();
-
-The main loop of the application, only returns when an SDL_QUIT event occured,
-or the user event handler (see L<handle_event>) returned true.
-
-=item handle_events()
-
-Checks for events and hands all of them to L<event_handler> for user handling.
-The only event it handles directly is SDL_QUIT. Returns 0 for keeping
-the application running, and > 0 for quit.
-
-=item create_window
-
-Initialized the SDL subsysten and creates the window.
 
 =item option()
 
@@ -898,10 +980,39 @@ only change at the start of each frame.
 Return time at the start of the last frame. See current_time(). The same value
 is passed to L<draw_frame()>.
 
+=back
+
+The following routines are used internally and automatically, so you need not
+to call them.
+
+=over 2
+
+=item create_window
+
+Initialized the SDL subsysten and creates the window.
+
 =item next_frame
 
 Updates the FPS monitoring process, the frame counter, the average frame rate,
 and then calls L<draw_frame()>.
+
+=item handle_events()
+
+Checks for events and hands all of them to L<event_handler> for user handling.
+The only event it handles directly is SDL_QUIT. Returns 0 for keeping
+the application running, and > 0 for quit.
+
+=item main_loop()
+
+	$app->main_loop();
+
+The main loop of the application, only returns when an SDL_QUIT event occured,
+or the user event handler (see L<handle_event>) returned true.
+
+=item expire_timers()
+
+Check all the timers for whether they are due ot not and let them fire.
+Removes unnecc. timers from the list.
 
 =back
 

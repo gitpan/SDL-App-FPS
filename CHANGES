@@ -13,7 +13,7 @@ SDL::App::FPS:
    - object oriented approach, subclassable
  * added sample subclass and testfile
 
-2002-12-26 v0.02 Tels - 8 tests
+2002-12-26 v0.02 Tels - 8 tests (15:30)
  * added $VERSION
  * made into a proper package for easier handling
  * added quit() to quit application from draw_frame() or anywhere else
@@ -25,7 +25,7 @@ SDL::App::FPS:
  * added ramp_time_warp(), stop_time_warp_ramp()
  * added freeze_time(), thaw_time()
 
-2002-12-26 v0.03 Tels - 11 tests
+2002-12-26 v0.03 Tels - 11 tests (19:50)
  * added time_is_frozen(), time_is_ramping()
  * added pause() to pause application until some or an specific event occured
    (the SDL_QUIT event will always end the pause and then the application)
@@ -37,6 +37,16 @@ SDL::App::FPS:
  * added app(), width() and height()
  * added min_fps(), max_fps()
  * added min_frame_time(), max_frame_time()
+
+2002-12-26 v0.04 Tels - 41 tests (22:35) 
+ * moved bugs from TODO to BUGS
+ * the event we wait in pause() for is put to handle_event(), too.
+ * added support for timers via SDL::App::FPS::Timer and add_timer(),
+   get_timer(), remove_timer(), timers() as well as expire_timers()
+ * added a timer example to the example application, it now spawns a new
+   rectangle every 3 seconds.
+ * re-ordered METHODS in FPS.pm: move the automatically used methods to bottom
+ * added tests for Timer.pm
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

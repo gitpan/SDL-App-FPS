@@ -32,8 +32,19 @@ sub draw_frame
     }
     
   $self->{myfps}->{drawcounter}++;
+ 
+  # if we have drawn more than 100 frames, add one timer to quit us immiately
+  # Note: This is just for testing, normally you just call $self->quit(); :) 
+  $self->add_timer ( 0, 1, 0, \&_timer_quit, $self)
+    if $self->frames() >= 100;
+  }
   
-  $self->quit() if $self->frames() >= 100;
+sub _timer_quit
+  {
+  my ($self, $timer, $timer_id) = @_;
+
+  $self->{myfps}->{timer_fired}++;
+  $self->quit();
   }
 
 #sub handle_event

@@ -1,4 +1,5 @@
-CHANGES				# changes from the original v0.01
+BUGS
+CHANGES
 MANIFEST
 README
 SIGNATURE
@@ -7,5 +8,7 @@ examples/Kcirb.pl
 examples/lib/SDL/App/FPS/Kcirb.pm
 Makefile.PL
 lib/SDL/App/FPS.pm
+lib/SDL/App/FPS/Timer.pm
 t/SDL/App/MyFPS.pm
 t/myfps.t
+t/timer.t

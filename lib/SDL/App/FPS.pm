@@ -22,7 +22,7 @@ require Exporter;
 use vars qw/@ISA $VERSION/;
 @ISA = qw/Exporter DynaLoader/;
 
-$VERSION = '0.09';
+$VERSION = '0.10';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -151,13 +151,20 @@ sub option
 sub width
   {
   my $self = shift;
-  $self->{_app}->{app}->width();
+
+  $self->{_app}->{width};
   }
 
 sub height
   {
   my $self = shift;
-  $self->{_app}->{app}->height();
+  $self->{_app}->{height};
+  }
+
+sub depth
+  {
+  my $self = shift;
+  $self->{_app}->{depth};
   }
 
 sub update
@@ -203,13 +210,18 @@ sub create_window
   {
   my $self = shift;
 
+  my $app = $self->{_app};
   my @opt = ();
   foreach my $k (qw/width height depth/)
     {
-    push @opt, "-$k", $self->{$k};
+    push @opt, "-$k", $app->{options}->{$k};
     }
-  $self->{_app}->{app} = SDL::App->new( @opt );
-  $self->{_app}->{app}->fullscreen() if $self->{_app}->{options}->{fullscreen};
+  $app->{app} = SDL::App->new( @opt );
+  $app->{app}->fullscreen() if $app->{options}->{fullscreen};
+  # cache resolution and bits_per_pixel
+  $app->{width} = $app->{app}->width();
+  $app->{height} = $app->{app}->height();
+  $app->{depth} = $app->{app}->bpp();
   $self;
   }
 	
@@ -730,7 +742,7 @@ __END__
 
 =head1 NAME
 
-SDL::App::FPS - a parent class for FPS (framerate centric) applications
+SDL::App::FPS - a parent class for FPS (framerate/s centric) SDL applications
 
 =head1 SYNOPSIS
 
@@ -1092,6 +1104,13 @@ Return the current width of the application's surface.
 	my $w = $self->height();
 
 Return the current height of the application's surface.
+
+=item depth()
+
+	my $w = $self->depth();
+
+Return the current bits per pixel of the application's surface in bits, e.g.
+8, 16, 24 or 32.
 
 =item update()
 

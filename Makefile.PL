@@ -5,7 +5,7 @@ WriteMakefile(
     'NAME'		=> 'SDL::App::FPS',
     'VERSION_FROM'	=> 'lib/SDL/App/FPS.pm', # finds $VERSION
     'PREREQ_PM'		=> {
-			SDL => '1.18.0',
+			SDL => '1.19.2',
 			}, # e.g., Module::Name => 1.1
     'LIBS'		=> [ '-lSDL' ], # e.g., '-lm'
     'DEFINE'		=> '', # e.g., '-DHAVE_SOMETHING'

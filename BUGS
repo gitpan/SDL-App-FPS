@@ -13,7 +13,10 @@ SDL::App::FPS:
   Update: Ksysgaurd (KDE applet monitoring CPU and memory) is causing the
   jerky delays, since it does need quite some time every 2 seconds. However,
   since optimisations took place the problem is no longer as aparent as it
-  used to be.
+  used to be (read: when the delay caused by KSysGuard plus time to draw a
+  frame falls under a certain threshold, my eyes no longer see jerky stops.
+  Raise the delay by a couple ms, and it is very noticable...funny human
+  sensor equipment...)
   However, since we can't sleep much under 5 ms, and sometimes sleep much
   longer than planned, either a better Delay() or some better tracking of
   the sleep times is neccessary. Currently the fps cap stops working at about

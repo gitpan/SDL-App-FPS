@@ -114,6 +114,20 @@ SDL::App::FPS:
  * EventHandler callback can carry additional arguments
  * added mandel.pl to examples
 
+2003-01-02 v0.10 Tels - 111 tests
+ * nit: fixed =NAME to contain 'SDL' for indexing
+ * PREREQ SDL_perl v1.19.2 since it is now on CPAN
+ * added LICENSE and CREDITS
+ * added SDL::App::FPS::depth()
+ * depth(), height() and width() return cached values for more speed
+ * fixed: create_window() ignored the user options and always used 640x480x24
+ * fixed to mandel.pl:
+   + fixed and enabled the recursive algorithmn in mandel.pl (takes 48 sec
+     instead 154 sec on 1 Ghz AMD for first image, even better when zoomed in)
+   + fixed time output in mandel.pl, dump some debug output and coordinates
+   + zooming in while recursive calc was underway resulted in corruption
+   + toggle method: 1 (iterative), 2 (recursive), 3 (recursive with prefill)
+
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

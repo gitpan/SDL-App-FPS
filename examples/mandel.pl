@@ -17,7 +17,7 @@ use SDL::App::FPS::MyMandel;
 
 my $options = { width => 640, height => 480, max_fps => 40 };
 
-print "SDL Mandelbrot (C) 2002,2003 by Tels <http://Bloodgate.com/>\n\n";
+print "SDL Mandelbrot (C) v0.02 2002,2003 by Tels <http://Bloodgate.com/>\n\n";
 
 my $app = SDL::App::FPS::MyMandel->new( $options );
 $app->main_loop();

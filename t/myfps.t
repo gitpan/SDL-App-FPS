@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 35;
+use Test::More tests => 37;
 use strict;
 
 BEGIN
@@ -26,7 +26,8 @@ can_ok ('SDL::App::MyFPS', qw/
   pause
   min_fps max_fps
   min_frame_time max_frame_time
-  width height app
+  width height depth
+  app
   del_timer timers add_timer get_timer
   add_event_handler del_event_handler
   add_group
@@ -35,7 +36,7 @@ can_ok ('SDL::App::MyFPS', qw/
 
 use SDL::Event;
 
-my $options = { width => 640, height => 480, };
+my $options = { width => 640, height => 480, depth => 24, };
 
 my $app = SDL::App::MyFPS->new( $options );
 
@@ -46,6 +47,11 @@ is (exists $app->{myfps}, 1, 'data all encapsulated');
 $app->add_event_handler(SDL_KEYDOWN, SDLK_q, { });
 my $timer = 0;
 $app->add_timer(20, 1, 0, 0, sub { $timer++ } );
+
+# can't test bpp, since that depends on X, not the app :/
+#is ($app->depth(), 24, 'depth is 24 bit');
+is ($app->width(), 640, 'width 640 pixel');
+is ($app->height(), 480, 'width 480 pixel');
 
 $app->main_loop();
 

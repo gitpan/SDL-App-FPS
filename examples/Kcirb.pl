@@ -12,12 +12,13 @@ BEGIN
   $| = 1;
   unshift @INC, './lib';
   unshift @INC, '../lib';
+  unshift @INC, '../blib/arch/';
   }
 
 use SDL::App::FPS::Kcirb;
 
 # fill in here options or use Getopt::Long for command line
-my $options = { width => 640, height => 480, max_fps => 60};
+my $options = { width => 640, height => 480, max_fps => 40};
 
 print "Kcirb v0.01 (C) 2002 by Tels <http://Bloodgate.com/>\n\n";
 

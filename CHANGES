@@ -48,7 +48,7 @@ SDL::App::FPS:
  * re-ordered METHODS in FPS.pm: move the automatically used methods to bottom
  * added tests for Timer.pm
 
-2002-12-27 v0.05 Tels - 50 tests 
+2002-12-27 v0.05 Tels - 50 tests (1.35) 
  * timers can have additional arguments to callback, test for them
  * timers allow negative target time and negative delay time
  * fixed: add_timer() really add timer, instead of replacing the first one
@@ -60,6 +60,18 @@ SDL::App::FPS:
  * add "shots" to example application (shows nested timers with overshot
    correction!)
  * added key 'b' to example application, wait for some action, then try it!
+
+2002-12-27 v0.06 Tels - 50 tests (23:43)
+ * coded the delay() routine in XS, so that the example app only spents about
+   4% of it's time in next_frame(), not 12%.
+ * remember timer's next $next_check so as to not check them too often
+   (exaple app saves a few % by calling expire_timers() only about half as
+   much as in v0.05)
+ * disable next_time_check when adding or removing timers (w/ nesting)
+ * optimized the example application to cache the SDL::rect objects for each
+   rectangle. While capping at 40 fps it uses about 50% CPU, even when there
+   are about 40 rectangles on the screen. v0.05 would start using 100% CPU
+   starting from only 20 or so rectangles onwards.
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

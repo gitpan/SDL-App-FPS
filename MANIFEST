@@ -7,6 +7,7 @@ TODO
 examples/Kcirb.pl
 examples/lib/SDL/App/FPS/Kcirb.pm
 Makefile.PL
+FPS.xs
 lib/SDL/App/FPS.pm
 lib/SDL/App/FPS/Timer.pm
 t/SDL/App/MyFPS.pm

@@ -6,7 +6,8 @@ use strict;
 BEGIN
   {
   $| = 1;
-  unshift @INC, '../lib';
+  unshift @INC, '../blib/lib';
+  unshift @INC, '../blib/arch';
   unshift @INC, '.';
   chdir 't' if -d 't';
   use_ok ('SDL::App::MyFPS');

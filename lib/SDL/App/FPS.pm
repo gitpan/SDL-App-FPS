@@ -14,11 +14,17 @@ use SDL::Event;
 
 use SDL::App::FPS::Timer;
 
-use Exporter;
-use vars qw/@ISA $VERSION/;
-@ISA = qw/Exporter/;
+require DynaLoader;
+require Exporter;
 
-$VERSION = '0.05';
+use vars qw/@ISA $VERSION/;
+@ISA = qw/Exporter DynaLoader/;
+
+$VERSION = '0.06';
+
+bootstrap SDL::App::FPS $VERSION;
+
+##############################################################################
 
 sub new
   {
@@ -102,6 +108,7 @@ sub _init
   
   $self->{timers} = {};				# none yet
 
+  $self->{next_timer_check} = 0;		# disable (always check)
   $self->{quit} = 0;				# don't let handle_events quit
   $self;
   }
@@ -382,54 +389,34 @@ sub next_frame
   my $self = shift;
   
   $self->{frames}++;				# one more
-  
-  # get current time (in ticks)
-  $self->{now} = SDL::GetTicks();
-
-  $self->_ramp_time_warp() if $self->{ramp_warp_time} != 0;
-
-  my $diff = $self->{now} - $self->{lastframes}->[-1];	# ticks between frames
+ 
+  # get current time at start of frame, and wait a bit if we are too fast
+  my $diff; 
+  ($self->{now},$diff) = 
+    _delay($self->{lastframes}->[-1],$self->{min_time} - $self->{wake_time});
 
   # advance our clock warped by time_warp
   $self->{current_time} =
     $self->{time_warp} * $diff + $self->{lastframe_time};
+  $self->_ramp_time_warp() if $self->{ramp_warp_time} != 0;
 
-  # and sleep a bit if we are to fast for the maximum fps we want to achive
-  if ($diff < $self->{min_time})
+  if ($diff > $self->{min_time})
     {
-    # So slow down...
-    my $time_to_sleep = $self->{min_time} - $diff - $self->{wake_time};
-    #print "time to sleep ",
-    #  "$time_to_sleep, wake_time $self->{wake_time}, diff $diff\n";
-    my $after_sleep = $self->{now};
-    if ($time_to_sleep > 1)
-      {
-      SDL::Delay($time_to_sleep);		# but don't sleep 0 or 1!
-      $after_sleep = SDL::GetTicks();
-      $diff = $after_sleep - $self->{lastframes}->[-1];
-      #print "diff $diff now $after_sleep\n";
-      }
-   
+    $self->{wake_time} = $diff - $self->{min_time};
+
+    # DEBUG
+    #if ($diff > $self->{min_time} + 5)
+    #  { 
+    # # took longer
+    #  print "[",$self->{now} - $self->{_last} || 0,
+    #   "] at $self->{now} took too long: $diff > $self->{min_time}\n";
+    #  $self->{_last} = $self->{now};
+    #  }
+
+    }
+  else
+    {
     $self->{wake_time} = 0;
-    if ($self->{options}->{cap_fps})
-      { 
-      # the Delay() will be quite a bit off, on my system it seems to like to
-      # sleep up to 20 ms (most of the time 10) more than it should. So we
-      # record this: $after_sleep - $now is the time we sleep, $min_time the
-      # time we should have spent at most.
-      # Without this calculation, the achieved framerate will wildly differ
-      # from the target framerate, but the code will be simpler and the frames
-      # spread more even in the time. Set $wake_time to 0 below to disable this.
-      $self->{wake_time} = $after_sleep - $self->{now};
-      #print "$wake_time (time for this frame including sleep)\n";
-      if ($self->{wake_time} > $self->{min_time})
-        {
-        $self->{wake_time} -= $self->{min_time};
-        }
-      else { $self->{wake_time} = 0; }
-      }
-    #  print "$self->{wake_time} (time we already sleept)\n";
-    $self->{now} = $after_sleep;
     }
 
   # remember $now
@@ -532,7 +519,21 @@ sub main_loop
   # don't call handle_events() when there are no events? Does this matter?
   while (!$self->{quit} && $self->handle_events() == 0)
     {
-    $self->expire_timers() if scalar keys %{$self->{timers}} > 0; # no timers?
+    if (scalar keys %{$self->{timers}} > 0)			# no timers?
+      {
+      if ($self->{time_warp} > 0)
+        {
+        $self->expire_timers() 
+ #        if ($self->{next_timer_check} == 0) ||
+           if ($self->{current_time} >= $self->{next_timer_check});
+        }
+      else
+        {
+        $self->expire_timers() 
+ #        if ($self->{next_timer_check} == 0) ||
+          if ($self->{current_time} <= $self->{next_timer_check});
+       }
+      }
     $self->next_frame();		# update the screen and fps monitor
     }
   $self->quit_handler();
@@ -555,6 +556,8 @@ sub add_timer
 
   # otherwise remember it
   $self->{timers}->{$timer->{id}} = $timer;
+  $self->{next_timer_check} = 0;		# disable (always check)
+  $self->{timer_modified} = 1;
   # return it's id
   $timer->{id};
   }
@@ -565,15 +568,33 @@ sub expire_timers
   my $self = shift;
 
   return 0 if scalar keys %{$self->{timers}} == 0;	# no timers?
+  return 0 if $self->{time_warp} == 0;			# time stand still
 
+  $self->{timer_modified} = 0;				# track add/del
   my $now = $self->{current_time};			# timers are warped
   my $time_warp = $self->{time_warp};			# timers are warped
   foreach my $id (keys %{$self->{timers}})
     {
-    $self->{timers}->{$id}->due($now,$time_warp);	# let timer fire
-    delete $self->{timers}->{$id}
-     if $self->{timers}->{$id}->count() == 0;		# remove any expired
+    my $timer = $self->{timers}->{$id};
+    $timer->due($now,$time_warp);			# let timer fire
+    # remember nearest time to fire a time
+    if ($self->{time_warp} > 0)
+      {
+      $self->{next_timer_check} = $timer->{next_shot}
+        if $timer->{next_shot} < $self->{next_timer_check} ||
+         $self->{next_timer_check} == 0;
+      }
+    else
+      {
+      $self->{next_timer_check} = $timer->{next_shot}
+        if $timer->{next_shot} > $self->{next_timer_check} ||
+         $self->{next_timer_check} == 0;
+      }
+   $self->{timer_modified} = 1 && delete $self->{timers}->{$id}
+     if $timer->count() == 0;				# remove any expired
     }
+  $self->{next_timer_check} = 0			# disable (always check)
+   if $self->{timer_modified} != 0;	
   }
 
 sub timers
@@ -597,6 +618,8 @@ sub remove_timer
   # delete a timer with a specific id
   my ($self,$id) = @_;
 
+  $self->{next_timer_check} = 0;		# disable (always check)
+  $self->{timer_modified} = 1;
   delete $self->{timers}->{$id};
   }
 

@@ -95,9 +95,16 @@ sub _kcirb_draw_rectangle
   # draw the rectangle on the screen
   my ($self,$rect,$color) = @_;
 
-  my $r = new SDL::Rect ( -height => $rect->{h}, -width => $rect->{w},
-   -x => $rect->{x}, -y => $rect->{y},
-  );
+  my $r = $rect->{rect};
+
+  $r->width($rect->{w});
+  $r->height($rect->{h});
+  $r->x($rect->{x});
+  $r->y($rect->{y});
+
+#  my $r = new SDL::Rect ( -height => $rect->{h}, -width => $rect->{w},
+#   -x => $rect->{x}, -y => $rect->{y},
+#  );
   $self->{app}->fill($r,$color);
 
   }
@@ -256,6 +263,7 @@ sub _kcirb_add_shot
   $k->{x_s} = $k->{x};		 # start x
   $k->{y_s} = $k->{y};		 # start y
   $k->{color} = new SDL::Color ( -r => 0xff, -g => 0xff, -b => 0xff );
+  $k->{rect} = SDL::Rect->new();
   push @{$self->{kcirb}->{rectangles}}, $k;
   }
 
@@ -288,6 +296,7 @@ sub _kcirb_add_rect
    -r => int(rand(8)+1) * 0x20 - 1,		# 1f,3f,5f,7f,9f,bf,df,ff
    -g => int(rand(8)+1) * 0x20 - 1,
    -b => int(rand(8)+1) * 0x20 - 1);
+  $k->{rect} = SDL::Rect->new();
   push @{$self->{kcirb}->{rectangles}}, $k;
   }
 

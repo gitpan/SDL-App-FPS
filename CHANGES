@@ -65,13 +65,32 @@ SDL::App::FPS:
  * coded the delay() routine in XS, so that the example app only spents about
    4% of it's time in next_frame(), not 12%.
  * remember timer's next $next_check so as to not check them too often
-   (exaple app saves a few % by calling expire_timers() only about half as
+   (example app saves a few % by calling expire_timers() only about half as
    much as in v0.05)
  * disable next_time_check when adding or removing timers (w/ nesting)
  * optimized the example application to cache the SDL::rect objects for each
    rectangle. While capping at 40 fps it uses about 50% CPU, even when there
    are about 40 rectangles on the screen. v0.05 would start using 100% CPU
    starting from only 20 or so rectangles onwards.
+
+2002-12-28 v0.07 Tels - 70 tests
+ * Changed the event handling framework:
+   added add_event_handler(), SDL::App::FPS::EventHandler (with new(),
+    rebind(), check()), and del_event_handler().
+   Overriding handle_event() no longer necc., removed handle_event(), and
+   changed example app to use this.
+ * timer check that rand value is smaller than abs(time) and abs(delay)
+ * wiggle timer time and delay based on rand value
+ * added in_fullscreen() to check current fullscreen status
+ * fullscreen() takes argument to switch to fullscreen or windowed mode
+   (instead just toggling) and returns current status
+ * tests for random timers and fullscreen stuff
+ * added a big section on why, how, time warp, ramping, event handlers and
+   timers to the pod in SDL::App::FPS
+ * renamed remove_timer() to del_timer() and documented it
+ * tests for del_timer()
+ * fixed get_timer() and test for it
+ * renamed example application to "demo"
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

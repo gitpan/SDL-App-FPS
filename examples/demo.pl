@@ -15,7 +15,7 @@ BEGIN
   unshift @INC, '../blib/arch/';
   }
 
-use SDL::App::FPS::Kcirb;
+use SDL::App::FPS::Demo;
 
 # fill in here options or use Getopt::Long for command line
 my $options = { width => 640, height => 480, max_fps => 40};
@@ -31,5 +31,5 @@ print "Minimum framerate ",int($app->min_fps()*10)/10,
 print "Minimum time per frame ", $app->min_frame_time(),
       " ms, maximum time per frame ", $app->max_frame_time()," ms\n";
 print "Maximum number of rectangles: ",
-       scalar @{$app->{kcirb}->{rectangles}},"\n\n";
-print "Thank you for playing Kcirb!\n";
+       scalar @{$app->{demo}->{rectangles}},"\n\n";
+print "Thank you for playing!\n";

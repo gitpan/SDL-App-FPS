@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 33;
+use Test::More tests => 37;
 use strict;
 
 BEGIN
@@ -83,4 +83,21 @@ $timer =
   SDL::App::FPS::Timer->new (-1000, 1, 200, 0, 2000, \&fire2, {}, 119, 117); 
 is (ref($timer), 'SDL::App::FPS::Timer', 'timer new worked');
 is ($timer->next_shot(), 1000, 'timer would fire in t-1000');
+
+##############################################################################
+# timer with random delay
+srand(3);					# definite rand for testing
+my @rand = rand(400);
+push @rand, rand(400);
+srand(3);					# reset for testing
+
+# test rand() in initial time
+$timer =
+  SDL::App::FPS::Timer->new (1000, 1, 2000, 400, 0, \&fire); 
+is (ref($timer), 'SDL::App::FPS::Timer', 'timer new worked');
+is ($timer->next_shot(), int(1000 + $rand[0] - 200), 'timer would fire ok');
+# test rand() in delay time
+is ($timer->due(2000,1), 1, 'ok due');
+is ($timer->next_shot(), 
+    int(1000 + $rand[0] - 200) + int(2000 + $rand[1] - 200), 'delay is fine');
 

@@ -12,7 +12,7 @@ use Exporter;
 use vars qw/@ISA $VERSION/;
 @ISA = qw/Exporter/;
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 
   {
   my $id = 1;
@@ -31,6 +31,12 @@ sub new
   $self->{count} = shift;			# count < 0 => infitite
   $self->{delay} = shift || $self->{time};
   $self->{rand} = abs(shift || 0);		# wiggle firing
+  if (($self->{rand} > abs($self->{time})) ||
+      ($self->{rand} > abs($self->{delay})))
+    {
+    require Carp;
+    Carp::croak ("Timer rand value cannot be greater than time or delay");
+    }
   $self->{start} = shift;			# time we started to live
   $self->{code} = shift;			# callback
   if (ref($self->{code}) ne 'CODE')
@@ -41,6 +47,11 @@ sub new
   $self->{args} = [ @_ ];			# additional arguments
   $self->{due} = 0;				# not yet
   $self->{next_shot} = $self->{start} + $self->{time};
+  # add in random delay if necc.
+  if ($self->{rand} != 0)
+    {
+    $self->{next_shot} += int(rand($self->{rand})- $self->{rand} / 2);
+    }
   $self->{overshot} = 0;			# when we fire, we are late
 						# by this amount
 
@@ -81,7 +92,11 @@ sub _fire
   $self->{due} = 1;
   $self->{overshot} = $now - $self->{next_shot};	# we are late
   # our next shot will be then (regardless of when this shot was fired)
-  $self->{next_shot} += $self->{delay};			
+  $self->{next_shot} += $self->{delay};
+  if ($self->{rand} != 0)
+    {
+    $self->{next_shot} += int(rand($self->{rand}) - $self->{rand} / 2);
+    }
   $self->{count}-- if $self->{count} > 0;		# one shot less
   $self->{time} = $self->{delay};			# allow a positive
 							# time and then

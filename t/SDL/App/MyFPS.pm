@@ -47,14 +47,6 @@ sub _timer_quit
   $self->quit();
   }
 
-#sub handle_event
-#  {
-#  # called for each event that occurs, override in a subclass
-#  my ($self, $event) = @_;
-#
-#  0;
-#  }
-
 sub post_init_handler
   {
   my $self = shift;

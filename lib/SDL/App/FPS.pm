@@ -13,6 +13,7 @@ use SDL::App;
 use SDL::Event;
 
 use SDL::App::FPS::Timer;
+use SDL::App::FPS::EventHandler;
 
 require DynaLoader;
 require Exporter;
@@ -20,7 +21,7 @@ require Exporter;
 use vars qw/@ISA $VERSION/;
 @ISA = qw/Exporter DynaLoader/;
 
-$VERSION = '0.06';
+$VERSION = '0.07';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -80,6 +81,9 @@ sub _init
     {
     $opt->{$key} = $def->{$key} unless exists $opt->{$key};
     }
+
+  $self->{in_fullscreen} = 0;			# start windowed
+  $self->fullscreen() if $opt->{fullscreen};	# switch to fullscreen
   
   # limit to some sensible value
   $opt->{max_fps} = 200 if $opt->{max_fps} > 200;
@@ -107,6 +111,7 @@ sub _init
   $self->{ramp_warp_time} = 0;			# disable ramping
   
   $self->{timers} = {};				# none yet
+  $self->{event_handler} = {};			# none yet
 
   $self->{next_timer_check} = 0;		# disable (always check)
   $self->{quit} = 0;				# don't let handle_events quit
@@ -161,13 +166,30 @@ sub app
   return $self->{app};
   }
 
+sub in_fullscreen
+  {
+  # returns true for in fullscreen, false for in window
+  my $self = shift;
+
+  $self->{in_fullscreen};
+  }
+
 sub fullscreen
   {
   # toggle the application into and out of fullscreen
+  # if given an argument, and this is true, switches to fullscreen
+  # if given an argument, and this is fals, switches to windowed
+  # returns true for in fullscreen, false for in window
   my $self = shift;
 
-  $self->{options}->{fullscreen} = !$self->{options}->{fullscreen};
-  $self->{app}->fullscreen();
+  if (@_ > 0)
+    {
+    my $t = shift || 0; $t = 1 if $t != 0;
+    return $self->{in_fullscreen} if ($t == $self->{in_fullscreen});
+    }
+  $self->{in_fullscreen} = 1 - $self->{in_fullscreen};	# toggle
+  $self->{app}->fullscreen();				# switch
+  $self->{in_fullscreen};
   }
 
 sub create_window
@@ -466,9 +488,13 @@ sub handle_events
   while ($event->poll())			# got one event?
     {
     return 1 if $event->type() == SDL_QUIT;
-    $done += $self->handle_event($event);	# let subclass handle event
+    # check all event handlers
+    foreach my $id (keys %{$self->{event_handler}})
+      {
+      $self->{event_handler}->{$id}->check($event);
+      }
     }
-  $done;
+  $done += $self->{quit};	# if an event handler set it, terminate
   }
 
 sub quit
@@ -524,14 +550,14 @@ sub main_loop
       if ($self->{time_warp} > 0)
         {
         $self->expire_timers() 
- #        if ($self->{next_timer_check} == 0) ||
-           if ($self->{current_time} >= $self->{next_timer_check});
+         if (($self->{next_timer_check} == 0) ||
+            ($self->{current_time} >= $self->{next_timer_check}));
         }
       else
         {
         $self->expire_timers() 
- #        if ($self->{next_timer_check} == 0) ||
-          if ($self->{current_time} <= $self->{next_timer_check});
+         if (($self->{next_timer_check} == 0) ||
+           ($self->{current_time} <= $self->{next_timer_check}));
        }
       }
     $self->next_frame();		# update the screen and fps monitor
@@ -539,13 +565,15 @@ sub main_loop
   $self->quit_handler();
   }
 
+##############################################################################
+# timer stuff
+
 sub add_timer
   {
   # add a timer to the list of timers
   # The timer fires the first time after $time ms, then after each $delay ms
   # for $count times. $count < 0 means fires infinity times. $callback must
-  # be a coderef, which will be called once the timer fires with:
-  # $coderef($timer->{id},$timer);
+  # be a coderef, which will be called when the timer fires
   my $self = shift;
   my ($time, $count, $delay, $rand, $callback, @args) = @_;
 
@@ -611,16 +639,39 @@ sub get_timer
   my ($self,$id) = @_;
 
   return unless exists $self->{timers}->{$id};
+  $self->{timers}->{$id};
   }
 
-sub remove_timer
+sub del_timer
   {
   # delete a timer with a specific id
   my ($self,$id) = @_;
 
+  $id = $id->{id} if ref($id) eq 'SDL::App::FPS::Timer';
+
   $self->{next_timer_check} = 0;		# disable (always check)
   $self->{timer_modified} = 1;
   delete $self->{timers}->{$id};
+  }
+
+##############################################################################
+# event handling stuff
+
+sub add_event_handler
+  {
+  # add an event handler
+  my ($self,$type,$kind,$callback) = @_;
+
+  my $handler = SDL::App::FPS::EventHandler->new($type,$kind,$callback,$self);
+
+  $self->{event_handler}->{$handler->{id}} = $handler;
+  }
+
+sub del_event_handler
+  {
+  my ($self,$handler) = @_;
+
+  delete $self->{event_handler}->{$handler->{id}};
   }
 
 ##############################################################################
@@ -633,14 +684,6 @@ sub draw_frame
   my ($self,$current_time,$lastframe_time,$current_fps) = @_;
  
   $self; 
-  }
-
-sub handle_event
-  {
-  # called for each event that occurs, override in a subclass
-  my ($self, $event) = @_;
-
-  0;				# ignore event and keep running
   }
 
 sub post_init_handler
@@ -676,6 +719,7 @@ Subclass SDL::App::FPS and override some methods:
 	use Exporter;
 	use strict;
 	use SDL::App::FPS;
+	use SDL::Event;
 
 	use vars qw/@ISA/;
 	@ISA = qw/SDL::App::FPS/;
@@ -686,11 +730,15 @@ Subclass SDL::App::FPS and override some methods:
 	  my ($self,$current_time,$lastframe_time,$current_fps) = @_;
           }
 
-        # override the event handler to handle events interesting to you
-	sub handle_event
+        # override post_init_handler and add some event handlers
+	sub post_init_handler
 	  {
-	  my ($self,$event} = shift;
- 
+	  my ($self} = shift;
+
+	  my $self->add_event_handler(SDL_KEYDOWN, SDLK_q, sub
+            {
+            my $self = shift; $self->quit();
+            } );
 	  }
 
 Then write a small script using SDL::App::MyFPS like this:
@@ -713,9 +761,179 @@ That's all!
 This package provides you with a base class to write your own SDL Perl
 applications.
 
-=head2 Why and how
+=head2 The Why
+
+When building a game or screensaver displaying some continously running
+animation, a couple of basics need to be done to get a smooth animation and
+to care of copying with varying speeds of the system. Ideally, the animation
+displayed should be always the same, no matter how fast the system is.
+
+This not only includes different systems (a PS/2 for instance would be slower
+than a 3 Ghz PC system), but also changes in the speed of the system over
+time, for instance when a background process uses some CPU time or the
+complexity of the scene changes.
+
+In many old (especial DOS) games, like the famous Wing Commander series, the
+animation would be drawn simple as fast as the system could, meaning that if
+you would try to play such a game on a modern machine it we end before you
+had the chance to click a button, simple because it wizzes a couple 10,000
+frames per second past your screen.
+
+While it is quite simple to restrict the maximum framerate possible, care
+must be taken to not just "burn" surplus CPU cycles. Instead the application
+should free the CPU whenever possible and give other applications/thread
+a chance to run. This is especially important for low-priority applications
+like screensavers.
+
+C<SDL::App::FPS> makes this possible for you without you needing to worry
+about how this is done. It will restrict the frame rate to a possible maximum
+and tries to achive the average framerate as close as possible to this
+maximum.
+ 
+C<SDL::App::FPS> also monitors the average framerate and gives you access
+to this value, so that you can, for instance, adjust the scene complexity
+based on the current framerate. You can access the current framerate,
+averaged over the last second (1000 ms) by calling L<current_fps>.
+
+=head2 Frame-rate Independend Clock
+
+Now that our application is drawing frames (via the method L<draw_frame>,
+which you should override in a subclass), we need a method to decouple the
+animation speed from the framerate.
+
+If we would simple put put an animation step every frame, we would get some
+sort of Death of the Fast Machine" effect ala Wing Commander. E.g. if the
+system manages only 10 FPS, the animation would be slower than when we do
+60 FPS.
+
+To achive this, C<SDL::App::FPS> features a clock, which runs independed of
+the current frame rate (and actually, independend of the system's clock, but
+more on this in the next section).
+
+You can access it via a call to L<current_time>, and it will return the ticks
+e.g. the number of milliseconds elapsed since the start of the application.
+
+To effectively decouple animation speed from FPS, get at each frame the
+current time, then move all objects (or animation sequences) according to
+their speed and display them at the location that matches the time at the
+start of the frame. See examples/ for an example on how to do this.
+
+Note that it is better to draw all objects according to the time at the start
+of the frame, and not according to the time when you draw a particular object.
+Or in other words, treat the time like it is standing still when drawing a
+complete frame. Thus each frame becomes a snapshot in time, and you don't get
+nasty sideeffects like one object beeing always "behind" the others just
+because it get's drawn earlier.
+
+=head2 Time Warp
+
+Now that we have a constant animation speed independend from framerate
+or system speed, let's have some fun.
+
+Since all our animation steps are coupled to the current time, we can play
+tricks with the current time.
+
+The function L<time_warp> let's you access a time warp factor. The default is
+1.0, but you can set it to any value you like. If you set it, for instance to
+0.5, the time will pass only half as fast as it used to be. This means
+instant slow motion! And when you really based all your animation on the
+current time, as you should, then it will really slow down your entire
+application to a crawl.
+
+Likewise a time warp of 2 let's the time pass twice as fast. There are
+virtually no restrictions to the time warp.
+
+For instance, a time warp greater than one let's the player pass boring
+moments in a game, for instance when you need to wait for certain events in
+a strategy game, like your factory beeing completed.
+
+Try to press the left (fast forward), right (slow motion) and middle (normal)
+mousebuttons in the example application and watch the effect.
+
+If you are very bored, press the 'b' key and see that even negative time warps
+are possible...
+
+=head2 Ramping Time Warp
+
+Now, setting the time war to factor of N is nice, but sometimes you want to
+make dramatic effects, like slowly freezing the time into ultra slow motion
+or speeding it up again.
+
+For this, L<ramp_time_warp> can be used. You give it a time warp factor you
+want to reach, and a time (based on real time, not the warped, but you can
+of course change this). Over the course of the time you specified, the time
+warp factor will be adapted until it reaches the new value. This means it
+is possible to slowly speeding up or down.
+
+You can also check whether the time warp is constant of currently ramping
+by using L<time_is_ramping>. When a ramp is in effect, call L<ramp_time_warp>
+without arguments to get the current parameters. See below for details.
+
+The example application uses the ramping effect instead instant time warp.
+
+=head2 Event handlers
+
+This section describes events as external events that typically happen due
+to user intervention.
+
+Such events are keypresses, mouse movement, mouse button presses, or just
+the flipping of the power switch. Of course the last event cannot be handled
+in a sane way by our framework :)
+
+All the events are checked and handled by SDL::App::FPS automatically. The
+event SDL_QUIT (which denotes that the application should shut down) is also
+carried out automatically. If you want to do some tidying up when this
+happens, override the method L<quit_handler>.
+
+The event checking and handling is done at the start of each frame. This
+means no event will happen while you draw the current frame. Well, it will
+happen, but the action caused by that event will delayed until the next
+frame starts. This simplifies the frame drawing routine tremendously, since
+you know that your world will be static until the next frame.
+
+To associate an event with an action, you use the L<add_event_handler> method.
+This method get's an event kind (like SDL_KEYDOWN or MOUSEBUTTONDOWN) and an
+event type (like SDLL_SPACE). When this specific event is encountered, the
+also given callback routine is called. In the simplest form, this would be
+an anonymous subroutine. Here is an example:
+
+	my $handler = $app->add_event_handler ( SDL_KEYDOWN, SDLK_SPACE, sub {
+	  my ($self) = shift;
+	  $self->pause();
+	} );
+
+This would pause the game when the space key (you know, the one also known
+as "any key" or "that longish bar at the bottom") is pressed.
+
+You can easily reconfigure the event to trigger for a different key like this:
+	
+	$handler->rebind( SDL_KEYDOWN, SDLK_p );
+
+If you want the same event to be triggered by different external events, then
+simple add another event:
+
+	my $handler2 = $app->add_event_handler ( SDL_KEYDOWN, SDLK_P, sub {
+	  my ($self) = shift;
+	  $self->pause();
+	} );
+
+This would also alow the user to pause with 'P'.
+
+Event bindings can also be removed with L<del_event_handler()>, if so desired.
+
+See L<add_event_handler()> for more details.
 
 =head2 Timers
+
+Of course not always should all things happen instantly. Sometimes you need
+to delay some events or have them happening at regular or irregular
+intervalls again.
+
+For these cases, C<SDL::App::FPS> features timers. These timers are different
+from the normal SDL::Timers in that they run in the application clock space,
+e.g. the time warp effects them. So if you application is in slow motion,
+the events triggers by the timers will still happen at the correct time.
+
 
 =head1 SUBCLASSING
 
@@ -822,19 +1040,34 @@ other events will be ignored, with the exception of SDL_QUIT.
 
 =item fullscreen()
 
-Toggle the application's fullscreen status.
+	$app->fullscreen();		# toggle
+	$app->fullscreen(1);		# fullscreen
+	$app->fullscreen(0);		# windowed
+
+When called without arguments, toggles the application's fullscreen status.
+When given an argument that is true, set's fullscreen mode, otherwise sets
+windowed mode. Returns true when fullscreenmode was activated, otherwise
+false. See L<is_fullscreen()>.
+
+=item is_fullscreen()
+
+	if ($app->is_fullscreen())
+	  {
+	  }
+
+Retursn true if the application is currently in fullscreen mode.
 
 =item width()
 
 	my $w = $self->width();
 
-Return the current width of the applications surface.
+Return the current width of the application's surface.
 
 =item height()
 
 	my $w = $self->height();
 
-Return the current height of the applications surface.
+Return the current height of the application's surface.
 
 =item update()
 
@@ -867,9 +1100,36 @@ The timers added via add_timer() are coupled to the warped clock.
 
 Given a timer id, returns the timer object or undef.
 
+=item del_timer()
+
+	$app->del_timer($timer);
+	$app->del_timer($timerid);
+	
+Delete the given timer (or the one by the given id).
+
 =item timers()
 
 Return count of active timers.
+
+=item add_event_handler
+
+        my $handler = SDL::App::FPS::EventHandler->new(
+                $type,
+                $kind,
+                $callback
+        );
+
+Creates a new event handler to watch out for $type events (SDL_KEYDOWN,
+SDL_MOUSEMOVED, SDL_MOUSEBUTTONDOWN etc) and then for $kind kind of it,
+like SDLK_SPACE. Mouse movement events ignore the $kind parameter.
+
+The created handler is added to the application.
+
+See L<SDL::App::FPS::EventHandler::new()> for details.
+
+=item del_event_handler
+
+Delete an event handler from the application. 
 
 =item app()
 
@@ -1042,7 +1302,7 @@ the application running, and > 0 for quit.
 	$app->main_loop();
 
 The main loop of the application, only returns when an SDL_QUIT event occured,
-or the user event handler (see L<handle_event>) returned true.
+or $self->quit() was called.
 
 =item expire_timers()
 

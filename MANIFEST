@@ -4,12 +4,14 @@ MANIFEST
 README
 SIGNATURE
 TODO
-examples/Kcirb.pl
-examples/lib/SDL/App/FPS/Kcirb.pm
+examples/demo.pl
+examples/lib/SDL/App/FPS/Demo.pm
 Makefile.PL
 FPS.xs
 lib/SDL/App/FPS.pm
 lib/SDL/App/FPS/Timer.pm
+lib/SDL/App/FPS/EventHandler.pm
 t/SDL/App/MyFPS.pm
 t/myfps.t
 t/timer.t
+t/event.t

@@ -9,6 +9,9 @@ use strict;
 
 use SDL::App::FPS;
 use SDL::Event;
+use SDL::App::FPS::EventHandler qw/
+  LEFTMOUSEBUTTON RIGHTMOUSEBUTTON MIDDLEMOUSEBUTTON
+  /;
 
 use vars qw/@ISA/;
 @ISA = qw/SDL::App::FPS/;
@@ -16,7 +19,7 @@ use vars qw/@ISA/;
 ##############################################################################
 # routines that are usually overriden in a subclass
 
-sub _kcirb_animate_rectangle
+sub _demo_animate_rectangle
   {
   # this animates the moving ractangle
   my ($self,$rect) = @_;
@@ -28,8 +31,8 @@ sub _kcirb_animate_rectangle
 
   # calculate the point were we land when we go $distance from the startpoint
   # in the current direction
-  my $x_dist = $distance * cos($rect->{angle} * $self->{kcirb}->{PI} / 180);
-  my $y_dist = $distance * sin($rect->{angle} * $self->{kcirb}->{PI} / 180);
+  my $x_dist = $distance * cos($rect->{angle} * $self->{demo}->{PI} / 180);
+  my $y_dist = $distance * sin($rect->{angle} * $self->{demo}->{PI} / 180);
  
   $rect->{x} = $rect->{x_s} + $x_dist; 
   $rect->{y} = $rect->{y_s} + $y_dist; 
@@ -90,7 +93,7 @@ sub _kcirb_animate_rectangle
   0;
   }
 
-sub _kcirb_draw_rectangle
+sub _demo_draw_rectangle
   {
   # draw the rectangle on the screen
   my ($self,$rect,$color) = @_;
@@ -102,42 +105,37 @@ sub _kcirb_draw_rectangle
   $r->x($rect->{x});
   $r->y($rect->{y});
 
-#  my $r = new SDL::Rect ( -height => $rect->{h}, -width => $rect->{w},
-#   -x => $rect->{x}, -y => $rect->{y},
-#  );
   $self->{app}->fill($r,$color);
-
   }
 
 sub draw_frame
   {
-  # draw one frame, usually overrriden in a subclass. If necc., this might
-  # call $self->handle_event().
+  # draw one frame, usually overrriden in a subclass.
   my ($self,$current_time,$lastframe_time,$current_fps) = @_;
 
   # using pause() would be a bit more efficient, though 
   return if $self->time_is_frozen();
 
   # undraw the rectangle(s) at the current location
-  foreach my $rect (@{$self->{kcirb}->{rectangles}})
+  foreach my $rect (@{$self->{demo}->{rectangles}})
     {
-    $self->_kcirb_draw_rectangle($rect,$self->{kcirb}->{black});
+    $self->_demo_draw_rectangle($rect,$self->{demo}->{black});
     }
 
   # move them
   my @keep = ();
-  foreach my $rect (@{$self->{kcirb}->{rectangles}})
+  foreach my $rect (@{$self->{demo}->{rectangles}})
     {
-    my $rc = $self->_kcirb_animate_rectangle($rect);
+    my $rc = $self->_demo_animate_rectangle($rect);
     # keep it ?
     push @keep, $rect if ($rc == 0);
     }
-  $self->{kcirb}->{rectangles} = [ @keep ];
+  $self->{demo}->{rectangles} = [ @keep ];
 
   # redraw the rectangles at their current location
-  foreach my $rect (@{$self->{kcirb}->{rectangles}})
+  foreach my $rect (@{$self->{demo}->{rectangles}})
     {
-    $self->_kcirb_draw_rectangle($rect,$rect->{color});
+    $self->_demo_draw_rectangle($rect,$rect->{color});
     }
   
   # update the screen with the changes
@@ -147,97 +145,81 @@ sub draw_frame
 
   }
 
-sub handle_event
-  {
-  # called for each event that occurs, override in a subclass
-  my ($self, $event) = @_;
-
-  my $type = $event->type();
-
-  if ($type == SDL_KEYDOWN)
-    {
-    # check which key it was
-    my $key = $event->key_sym();
-    if ($key == SDLK_q)
-      {
-      $self->quit();
-      }
-    elsif ($key == SDLK_f)
-      {
-      $self->fullscreen();
-      }
-    elsif ($key == SDLK_SPACE)
-      {
-      if ($self->time_is_frozen())
-        {
-        $self->thaw_time();
-        }
-      else
-        {
-        $self->freeze_time();
-        }
-      }
-    elsif ($key == SDLK_b)
-      {
-      # run clock if it is currently halted
-      $self->thaw_time() if $self->time_is_frozen();
-      # let clock go backwards for a time
-      $self->ramp_time_warp (-1, 2000);
-      # and add a timer to set it automatically going forward again
-      # Note that the clock goes backward, so we must set a negative target
-      # time :)
-      $self->add_timer ( -3000, 1, 0, 0, 
-        sub {
-          my $self = shift; 
-          $self->ramp_time_warp (1, 2000); 
-        } );
-      }
-    }
-  elsif ($type == SDL_MOUSEBUTTONDOWN && 
-     !$self->time_is_ramping() && !$self->time_is_frozen())
-    {
-    # check which button it was
-    my $button = $event->button();
-    if ($button == 1)				# left button
-      {
-      $self->ramp_time_warp('2',1500);		# ramp up
-      }
-    elsif ($button == 3)			# right button
-      {
-      $self->ramp_time_warp('0.3',1500);	# ramp down
-      }
-    elsif ($button == 2)			# middle button
-      {
-      $self->ramp_time_warp('1',1500);		# ramp to normal
-      }
-    }
-
-  0;
-  }
-
 sub post_init_handler
   {
   my $self = shift;
  
-  $self->{kcirb}->{rectangles} = [];
+  $self->{demo}->{rectangles} = [];
   
-  $self->{kcirb}->{black} = new SDL::Color (-r => 0, -g => 0, -b => 0);
-  $self->{kcirb}->{PI} = 3.141592654;
+  $self->{demo}->{black} = new SDL::Color (-r => 0, -g => 0, -b => 0);
+  $self->{demo}->{PI} = 3.141592654;
 
   # from time to time add a rectangle
-  $self->add_timer(800, -1, 3000, 0, \&_kcirb_add_rect);
+  $self->add_timer(800, -1, 3000, 0, \&_demo_add_rect);
   # from time to time start a timer which will "fire" rectangles 
-  $self->add_timer(1200, -1, 4000, 0, \&_kcirb_add_fire);
+  $self->add_timer(1200, -1, 4000, 0, \&_demo_add_fire);
+  
+  # set up the event handlers
+  $self->add_event_handler (SDL_KEYDOWN, SDLK_q, 
+   sub { my $self = shift; $self->quit(); });
+  $self->add_event_handler (SDL_KEYDOWN, SDLK_f, 
+   sub { my $self = shift; $self->fullscreen(); });
+  $self->add_event_handler (SDL_KEYDOWN, SDLK_SPACE, 
+   sub {
+     my $self = shift;
+    if ($self->time_is_frozen())
+      {
+      $self->thaw_time();
+      }
+    else
+      {
+      $self->freeze_time();
+      }
+    });
+  $self->add_event_handler (SDL_KEYDOWN, SDLK_b, 
+   sub {
+     my $self = shift;
+     # run clock if it is currently halted
+     $self->thaw_time() if $self->time_is_frozen();
+     # let clock go backwards for a time
+     $self->ramp_time_warp (-1, 2000);
+     # and add a timer to set it automatically going forward again
+     # Note that the clock goes backward, so we must set a negative target
+     # time :)
+     $self->add_timer ( -3000, 1, 0, 0, 
+       sub {
+         my $self = shift; 
+         $self->ramp_time_warp (1, 2000); 
+       } );
+    });
+  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, LEFTMOUSEBUTTON, 
+   sub {
+     my $self = shift;
+     return if $self->time_is_ramping() || $self->time_is_frozen();
+     $self->ramp_time_warp('2',1500);		# ramp up
+     });
+  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, RIGHTMOUSEBUTTON, 
+   sub {
+     my $self = shift;
+     return if $self->time_is_ramping() || $self->time_is_frozen();
+     $self->ramp_time_warp('0.3',1500);		# ramp down
+     });
+  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, MIDDLEMOUSEBUTTON, 
+   sub {
+     my $self = shift;
+     return if $self->time_is_ramping() || $self->time_is_frozen();
+     $self->ramp_time_warp('1',1500);		# ramp to normal
+     });
   }
 
-sub _kcirb_add_fire
+sub _demo_add_fire
   {
   my $self = shift;
 
-  $self->add_timer(100, 12, 80, 0, \&_kcirb_add_shot);
+  $self->add_timer(100, 12, 80, 0, \&_demo_add_shot);
   }
 
-sub _kcirb_add_shot
+sub _demo_add_shot
   {
   # add a shot to the screen going from right to left
   my ($self,$timer,$timer_id,$overshot) = @_;
@@ -264,10 +246,10 @@ sub _kcirb_add_shot
   $k->{y_s} = $k->{y};		 # start y
   $k->{color} = new SDL::Color ( -r => 0xff, -g => 0xff, -b => 0xff );
   $k->{rect} = SDL::Rect->new();
-  push @{$self->{kcirb}->{rectangles}}, $k;
+  push @{$self->{demo}->{rectangles}}, $k;
   }
 
-sub _kcirb_add_rect
+sub _demo_add_rect
   {
   # add a rectangle to our list
   my $self = shift;
@@ -297,7 +279,7 @@ sub _kcirb_add_rect
    -g => int(rand(8)+1) * 0x20 - 1,
    -b => int(rand(8)+1) * 0x20 - 1);
   $k->{rect} = SDL::Rect->new();
-  push @{$self->{kcirb}->{rectangles}}, $k;
+  push @{$self->{demo}->{rectangles}}, $k;
   }
 
 1;

@@ -108,6 +108,7 @@ sub post_init_handler
   # set up some event handlers
   $self->watch_event ( 
     quit => SDLK_q, fullscreen => SDLK_f, freeze => SDLK_SPACE,
+    screenshot => SDLK_F12,
    );
 
   $self->add_event_handler (SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_LEFT,

@@ -18,8 +18,6 @@ SDL::App::FPS:
   (and don't ignore the ACTIVATE signal even when not active)
 * let clock jump directly to a specific time (instead of just ramping time
   warp up)
-* links with timers need testing, link inverting, and link with specific
-  output/input filters
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

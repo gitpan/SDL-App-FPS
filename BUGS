@@ -12,7 +12,7 @@ SDL::App::FPS:
   should...(Hm, disabling xmms and any background app still does not help...)
   Update: Ksysgaurd (KDE applet monitoring CPU and memory) is causing the
   jerky delays, since it does need quite some time every 2 seconds. However,
-  since optimisations took place the problem is no longer as aparent as it
+  since optimisations took place the problem is no longer as apparent as it
   used to be (read: when the delay caused by KSysGuard plus time to draw a
   frame falls under a certain threshold, my eyes no longer see jerky stops.
   Raise the delay by a couple ms, and it is very noticable...funny human
@@ -22,8 +22,9 @@ SDL::App::FPS:
   the sleep times is neccessary. Currently the fps cap stops working at about
   300 FPS, where we will start burnign 100% CPU to achive as much FPS as
   possible, which we wanted to avoid. However, capping at 300 FPS already is
-  overkill....120 FPS or les (monitor refresh!) is much more usefull...
-
+  overkill....120 FPS or less (monitor refresh!) is much more usefull...
+* there seems to be a bug with the FPS monitoring, it often goes to 6-digit
+  FPS figures and stops to display the real FPS under 10 FPS.
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

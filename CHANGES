@@ -264,6 +264,15 @@ SDL::App::FPS:
   * The mandel fractal takes now 6.8 instead of 9.5 seconds, just be switching
     to SDL_perl 1.20.2 :-)
 
+2003-03-23 v0.19 Tels - 306 tests
+  * added config file support via Config::Simple (defaults to reading
+    'config/client.cfg'), added parameter "config" to set the config file name
+  * support for parsing command line options via GetOpt::Long
+  * added: watch_event() knows 'screenshot'
+  * fixed: $app->option() was broken because it accessed the wrong namespace
+  * fixed: switching to fullscreen at new() didn't work since window didn't
+           exist yet
+
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

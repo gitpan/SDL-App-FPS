@@ -8,6 +8,9 @@ package SDL::App::FPS;
 
 use strict;
 
+use Config::Simple qw/-lc -strict/;
+use Getopt::Long;
+
 use SDL;
 use SDL::App;
 use SDL::Event;
@@ -28,7 +31,7 @@ use vars qw/@ISA $VERSION @EXPORT_OK/;
 
 @EXPORT_OK = qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE/;
 
-$VERSION = '0.18';
+$VERSION = '0.19';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -54,6 +57,9 @@ sub new
 
   $self->post_init_handler();
 
+  # switch to fullscreen?
+  $self->fullscreen() if $self->{_app}->{options}->{fullscreen};
+
   $self;
   }
 
@@ -72,34 +78,85 @@ sub _init
     }
   $self->{_app} = {};
   my $app = $self->{_app};
+
   $app->{options} = {};
+  # if we have a config file, read it in, overwriting specified stuff
+  my $cfg = Config::Simple->new();
+
+  # read() can fail:
+  if ($cfg->read( $args->{config} || 'config/client.cfg'))
+    {
+    # The read in config values will look like "default.FullScreen", so
+    # normalize them:
+    my $hash = $cfg->vars();
+    foreach my $k (keys %$hash)
+      {
+      my $key = lc($k);
+      $key =~ s/^\w+\.//;
+      $app->{options}->{$key} = $hash->{$k};
+      }
+    }
+  else
+    {
+    #warn ("Cannot find config file ".
+    #      $args->{config} || 'config/client.cfg'.
+    #	  ": $! \n");
+    }
+
+  # override config values with given options to new() 
   my $opt = $app->{options};
   foreach my $key (keys %$args)
     {
-    $opt->{$key} = $args->{$key};
+    $opt->{lc($key)} = $args->{$key};
     }
-  # set some sensible defaults
+  
+  my $cmd = $self->_parse_command_line();
+  foreach my $key (keys %$cmd)
+    {
+    $opt->{lc($key)} = $cmd->{$key} if defined $cmd->{$key};
+    }
+
+  # set some sensible defaults if neither config file nor arguments set them
   my $def = {
     width => 800,
     height => 600,
     depth => 32,
     fullscreen => 0,
     resizeable => 1,
-    max_fps => 0,
+    max_fps => 60,
     time_warp => 1,
-    gl => 0,
+    useopengl => 0,
+    name => 'SDL::App::FPS',
     };
   foreach my $key (qw/
-     gl width height depth fullscreen max_fps time_warp resizeable
+     useopengl width height depth fullscreen
+     max_fps time_warp resizeable name
     /) 
     {
-    $opt->{$key} = $def->{$key} unless exists $opt->{$key};
+    $opt->{$key} = $def->{$key} 
+      unless exists $opt->{$key} && defined $opt->{$key};
+    }
+ 
+  # normalize flags 
+  foreach my $key (qw/
+     useopengl fullscreen resizeable
+    /)
+    {
+    $opt->{$key} = 0 unless defined $opt->{$key};	# auto-vivify
+    $opt->{$key} = 0 if $opt->{$key} =~ /^(0|off|no|false)$/i;
+    # TODO: should really complain about typos
+    $opt->{$key} = 1 if $opt->{$key} ne '0';
+    }
+
+  foreach my $key (keys %$opt)
+    {
+    next if $key eq 'config';
+    warn ("Unknown key $key in options") unless exists $def->{$key};
     }
 
   $app->{in_fullscreen} = 0;			# start windowed
-  $app->fullscreen() if $opt->{fullscreen};	# switch to fullscreen
   
-  # limit to some sensible value
+  # limit to some sensible values
   $opt->{max_fps} = 500 if $opt->{max_fps} > 500;
   $opt->{max_fps} = 0 if $opt->{max_fps} < 0;
   $opt->{width} = 16 if $opt->{width} < 16;
@@ -132,16 +189,47 @@ sub _init
   $self;
   }
 
+sub _parse_command_line
+  {
+  my $self = shift;
+
+  my $cmd = {}; my $input = {};
+  # override options with command line arguments
+  foreach my $key (qw/
+    fullscreen resizeable useopengl
+    /)
+    {
+    $input->{"$key!"} = \$cmd->{$key};
+    } 
+  foreach my $key (qw/
+    width height depth max_fps
+    /)
+    {
+    $input->{"$key=i"} = \$cmd->{$key};
+    } 
+  foreach my $key (qw/
+    name
+    /)
+    {
+    $input->{"$key=s"} = \$cmd->{$key};
+    } 
+ 
+  my $rc =  GetOptions ( %$input); 
+
+  return {} unless $rc;
+  $cmd;
+  }
+
 sub option
   {
   # get/set a specific option as it was originally set 
   my $self = shift;
   my $key = shift;
 
-  my $opt = $self->{options};
+  my $app = $self->{_app};
+  my $opt = $app->{options};
   if (@_ > 0)
     {
-    my $app = $self->{_app};
     $opt->{$key} = shift;
     if ($key eq 'max_fps')
       {
@@ -249,10 +337,12 @@ sub _create_window
 
   my $app = $self->{_app};
   my @opt = ();
-  foreach my $k (qw/gl width height depth resizeable/)
+  foreach my $k (qw/width height depth resizeable/)
     {
     push @opt, "-$k", $app->{options}->{$k};
     }
+  push @opt, "-gl", '1' if $app->{options}->{useopengl} != 0;
+    
   $app->{app} = SDL::App->new( @opt );
   $app->{app}->fullscreen() if $app->{options}->{fullscreen};
   # cache resolution and bits_per_pixel
@@ -1008,7 +1098,7 @@ sub watch_event
 
   foreach my $name (keys %{$args})
     {
-    if ($name !~ /^(pause|freeze|quit|fullscreen)$/)
+    if ($name !~ /^(pause|freeze|quit|fullscreen|screenshot)$/)
       {
       require Carp; Carp::croak ("Cannot watch unknown event $name");
       }
@@ -1048,6 +1138,10 @@ sub watch_event
     elsif ($name eq 'fullscreen')
       {
       $self->add_event_handler ($type, $key, sub { $_[0]->fullscreen(); } );
+      }
+    elsif ($name eq 'screenshot')
+      {
+      $self->add_event_handler ($type, $key, sub { $_[0]->screenshot(); } );
       }
     elsif ($name eq 'quit')
       {
@@ -1421,16 +1515,28 @@ special cases:
 Create a new application, init the SDL subsystem, create a window, starts
 the frame rate monitoring and the application time-warped clock.
 
-Get's a hash ref with options, the following options are supported:
+new() gets a hash ref with options, the following options are supported:
 
-	width       the width of the application window in pixel
-	height      the width of the application window in pixel
-	depth       the depth of the screen (colorspace) in bits
-	max_fps     maximum number of FPS to do (save CPU cycles)
-	resizeable  when true, the application window will be resizable
-		    You should install an event handler to watch for events
-		    of the type SDL_VIDEORESIZE
-	gl	    set to 1 to enable OpenGL support
+	width		the width of the application window in pixel
+	height		the width of the application window in pixel
+	depth		the depth of the screen (colorspace) in bits
+	max_fps		maximum number of FPS to do (save CPU cycles)
+	resizeable  	when true, the application window will be resizeable
+		    	You should install an event handler to watch for
+			events of the type SDL_VIDEORESIZE.
+	useopengl	set to 1 to enable OpenGL support
+	config		Path and name of the config file, defaults to
+			'config/client.cfg'.
+	time_warp	Defauls to 1.0 - initial time warp value.
+	fullscreen	0 = windowed, 1 - fullscreen
+	name		Name of the app, will be the window title
+
+new() also parses the command line options via Getopt::long, meaning that
+
+	./app.pl --fullscreen --width=800 --noresizeable
+
+will work as intended. If you want to prevent command line parsing, simple
+clear C<@ARGV = ()> before calling new().
 
 Please note that, due to the resulution of the timer, the maximum achivable FPS
 with capping is about 200-300 FPS even with an empty draw routine. Of course,
@@ -1815,7 +1921,7 @@ to call them.
 
 =item _create_window
 
-Initialized the SDL subsysten and creates the window.
+Initialized the SDL (and OpenGL) subsysten and creates the window.
 
 =item _next_frame
 

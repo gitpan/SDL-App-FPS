@@ -6,6 +6,7 @@ README
 SIGNATURE
 LICENSE
 TODO
+NEW
 examples/boulder/boulder.pl
 examples/boulder/data/level0001.txt
 examples/boulder/save/quicksave.txt
@@ -45,6 +46,10 @@ t/color.t
 t/event.t
 t/group.t
 t/myfps.t
+t/myopt.t				# command line parsing
 t/fps_timer.t				# test FPS.pm timers
 t/thingy.t
 t/timer.t
+t/mycfg.t				# cfg file reading
+t/config/client.cfg
+t/config/test.cfg

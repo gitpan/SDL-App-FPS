@@ -1,9 +1,9 @@
 
 ############################################################################## 
-SDL::App::FPS - base/parent class for frame rate centric SDL applications
+SDL::App::FPS - base/parent class for frame rate centric SDL/OpenGL apps
 
 This base class can be easy subclassed for your own projects. It is a basic
-building block for building SDL applications that need a fast framerate
+building block for building SDL/OpenGL applications that need a fast framerate
 with event handling before each frame.
 
 In examples/, there are quite a few examples, including a Mandelbrot Fractal
@@ -12,6 +12,8 @@ drawing program for your perusal.
 Features
 ========
 
+* Easy config file reading and command line parsing.
+* Both SDL and OpenGL support.
 * Framerate monitoring, so you can adjust the scene complexity in real-time
 * Capping the framerate, even with the inaccurate timer delays
 * event handling in between frames (very fast response to user action) which

@@ -1,0 +1,19 @@
+
+############################################################################## 
+SDL::App::FPS:
+
+This file lists only what is new in the last release. For a full version 
+history see the CHANGES file.
+
+2003-03-23 v0.19 Tels - 306 tests
+  * added config file support via Config::Simple (defaults to reading
+    'config/client.cfg'), new parameter "config" to set the config file name
+  * support for parsing command line options via GetOpt::Long
+  * fixed: $app->option() was broken because it accessed the wrong namespace
+  * fixed: switching to fullscreen at new() didn't work since window didn't
+           exist yet
+
+Please send me test-reports, your experiences with this and your ideas - I love
+to hear about my work!
+
+Tels <http://bloodgate.com/>

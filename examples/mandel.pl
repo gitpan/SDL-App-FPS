@@ -15,8 +15,6 @@ BEGIN
 
 use SDL::App::FPS::MyMandel;
 
-my $options = { width => 640, height => 480, max_fps => 20 };
-
 print "SDL Mandelbrot (C) v0.02 2002,2003 by Tels <http://Bloodgate.com/>\n\n";
 
 if (SDL::App::FPS::MyMandel::use_perl() == 0)
@@ -31,7 +29,7 @@ else
   "$Math::Fractal::Mandelbrot::VERSION as speed-booster.\n\n";
   }
 
-my $app = SDL::App::FPS::MyMandel->new( $options );
+my $app = SDL::App::FPS::MyMandel->new( config => 'config/mandel.cfg' );
 $app->main_loop();
 
 print "Running time was ", int($app->now() / 10)/100, " seconds\n";

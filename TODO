@@ -9,6 +9,12 @@ SDL::App::FPS:
 * add a fullscreen_toggled_handler() hook ?
 * code most of the critical stuff in SDL::App::FPS in XS for low-overhead
   (especially necc. for next_frame() and handle_events())
+* sort our event handlers and timers into active/inactive groups as to not
+  need to check the inactive ones at all (this also removes the ugly hack
+  that now prevents handlers that are activated by an earlier to handle the
+  event current event, too (e.g. when toggling between states by handling
+  the same event type with two different handlers)
+  + tests for that this works correctly (the event demo app relies on it)
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

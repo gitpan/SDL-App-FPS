@@ -39,6 +39,8 @@ sub new
   $self->{callback} = shift;			
   $self->{active} = 1;
   $self->{self} = shift;
+  
+  $self->{args} = [ @_ ];
 
   $self;
   }
@@ -68,7 +70,14 @@ sub check
     }
   
   # event happened, so call callback
-  &{$self->{callback}}($self->{self},$self,$event);
+  &{$self->{callback}}($self->{self},$self,$event,@{$self->{args}});
+  }
+
+sub group
+  {
+  # return the group this eventhandler belongs to or undef
+  my $self = shift;
+  $self->{group};
   }
 
 sub rebind
@@ -194,7 +203,7 @@ as first argument to the callback function when called.
 
 =item is_active()
 
-	$timer->is_active();
+	$handler->is_active();
 
 Returns true if the event handler is active, or false for inactive. Inactive
 event handlers ignore any events that might happen.
@@ -221,7 +230,7 @@ Return the handler's unique id.
 
 =head1 AUTHORS
 
-(c) Tels <http://bloodgate.com/>
+(c) 2002, 2003, Tels <http://bloodgate.com/>
 
 =head1 SEE ALSO
 

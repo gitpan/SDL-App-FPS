@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 27;
+use Test::More tests => 35;
 use strict;
 
 BEGIN
@@ -29,6 +29,7 @@ can_ok ('SDL::App::MyFPS', qw/
   width height app
   del_timer timers add_timer get_timer
   add_event_handler del_event_handler
+  add_group
   in_fullscreen
   /);
 
@@ -38,7 +39,13 @@ my $options = { width => 640, height => 480, };
 
 my $app = SDL::App::MyFPS->new( $options );
 
+is (keys %$app, 2, 'data all encapsulated');
+is (exists $app->{_app}, 1, 'data all encapsulated');
+is (exists $app->{myfps}, 1, 'data all encapsulated');
+
 $app->add_event_handler(SDL_KEYDOWN, SDLK_q, { });
+my $timer = 0;
+$app->add_timer(20, 1, 0, 0, sub { $timer++ } );
 
 $app->main_loop();
 
@@ -53,7 +60,7 @@ is ($app->time_is_frozen(), '', 'time is not frozen');
 is ($app->time_is_ramping(), '', 'time is not ramping');
 is ($app->timers(), 0, 'no timers running');
 
-is (scalar keys %{$app->{event_handler}}, 1, 'one handler');
+is (scalar keys %{$app->{_app}->{event_handler}}, 1, 'one handler');
 
 is ($app->in_fullscreen(), 0, 'were in windowed mode');
 is ($app->fullscreen(0), 0, 'already were in windowed mode');
@@ -81,4 +88,14 @@ $timer2 = $app->get_timer($timer2);
 is (ref($timer2), 'SDL::App::FPS::Timer', 'got timer from id');
 $app->del_timer($timer2->{id});
 is ($app->timers(), 0, 'none left');
+
+is ($app->current_time() > 0, 1, 'current time elapsed');
+is ($app->now() == $app->current_time(), 1, 'current time equals real time');
+
+##############################################################################
+
+is (keys %$app, 2, 'data all encapsulated');
+is (exists $app->{_app}, 1, 'data all encapsulated');
+is (exists $app->{myfps}, 1, 'data all encapsulated');
+
  

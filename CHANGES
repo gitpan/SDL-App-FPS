@@ -103,6 +103,17 @@ SDL::App::FPS:
    all, currently)
  * fixed EventHandler::check: don't check if event is inactive
 
+2003-01-01 v0.09 Tels - 109 tests
+ * added activate(), deactivate(), is_active() to Timer.pm
+ * added SDL::FPS::App::Group.
+ * added example on how to sort event handlers in groups, and enable, disable
+   them in batches
+ * added a test for timer not beeing due when time_warp == 0 (time frozen)
+ * tests for new timer features and group
+ * encapsulate all data of base class SDL::App::FPS inside $self->{_app}
+ * EventHandler callback can carry additional arguments
+ * added mandel.pl to examples
+
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

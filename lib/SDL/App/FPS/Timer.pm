@@ -26,6 +26,7 @@ sub new
   my $self = {}; bless $self, $class;
 
   $self->{id} = ID();
+  $self->{active} = 1;
   # times can be negative, for instance when clock goes backwards!
   $self->{time} = shift;			
   $self->{count} = shift;			# count < 0 => infitite
@@ -63,11 +64,39 @@ sub new
   $self;
   }
 
+sub activate
+  {
+  my ($self) = shift;
+
+  $self->{active} = 1;
+  }
+
+sub deactivate
+  {
+  my ($self) = shift;
+
+  $self->{active} = 0;
+  }
+
+sub is_active
+  {
+  my ($self) = shift;
+
+  $self->{active};
+  }
+
 sub next_shot
   {
   # when will next shot be fired?
   my $self = shift;
   $self->{next_shot};
+  }
+
+sub group
+  {
+  # return the group this timer belongs to or undef
+  my $self = shift;
+  $self->{group};
   }
 
 sub fired
@@ -113,7 +142,8 @@ sub due
   my ($self,$now,$time_warp) = @_;
  
   $self->{due} = 0;				# not yet
-  return 0 if ($time_warp == 0) || ($self->{count} == 0);
+  return 0
+    if ($time_warp == 0) || ($self->{count} == 0) || ($self->{active} == 0);
 
   # freeze backwards looking timers if time goes forward and vice versa
   if ($self->{time} > 0)
@@ -225,6 +255,27 @@ Returns whether the timer fired or not. Use only after calling C<due()>.
 Returns the number of 'shots' left. Negative value means the timer will
 fire infinitely often.
 
+=item group()
+
+	my $group = $timer->group();
+
+Returns the ref to the group this timer belongs to, or undef.
+
+=item is_active()
+
+        $timer->is_active();
+
+Returns true if the timer is active, or false for inactive. Inactive
+timers do not fire.
+
+=item activate()
+
+Set the timer to active. Newly created ones are always active.
+
+=item deactivate()
+
+Set the timer to inactive. Newly created ones are always active.
+
 =back
 
 =head1 BUGS
@@ -238,7 +289,7 @@ Currently it fires only once.
 
 =head1 AUTHORS
 
-(c) Tels <http://bloodgate.com/>
+(c) 2002, 2003, Tels <http://bloodgate.com/>
 
 =head1 SEE ALSO
 

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 37;
+use Test::More tests => 45;
 use strict;
 
 BEGIN
@@ -15,6 +15,7 @@ BEGIN
 
 can_ok ('SDL::App::FPS::Timer', qw/ 
   new count due id next_shot
+  activate deactivate is_active
   _fire
   /);
 
@@ -100,4 +101,21 @@ is ($timer->next_shot(), int(1000 + $rand[0] - 200), 'timer would fire ok');
 is ($timer->due(2000,1), 1, 'ok due');
 is ($timer->next_shot(), 
     int(1000 + $rand[0] - 200) + int(2000 + $rand[1] - 200), 'delay is fine');
+
+srand(3);					# definite rand for testing
+# test deactivated timers
+$timer =
+  SDL::App::FPS::Timer->new (1000, 1, 2000, 400, 0, \&fire); 
+is (ref($timer), 'SDL::App::FPS::Timer', 'timer new worked');
+is ($timer->next_shot(), int(1000 + $rand[0] - 200), 'timer would fire ok');
+is ($timer->count(), 1, 'timer fires once');
+$timer->deactivate();
+is ($timer->next_shot(), int(1000 + $rand[0] - 200), 'timer would fire ok');
+is ($timer->count(), 1, 'timer still fires once');
+is ($timer->is_active(), 0, 'timer not active');
+is ($timer->due(2000,1), 0, 'ok is not due');
+
+# test due with time_warp beeing zero
+$timer->activate();
+is ($timer->due(2000,0), 0, 'ok is not due');
 

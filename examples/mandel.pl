@@ -1,9 +1,7 @@
 #!/usr/bin/perl -w
 
 # a simple game, press 'f' to toggle fullscreen, space to pause it, and
-# the left or right mousebutton for slow motion respectively fast forward.
-# 'q' also quits the application. middle mouse button resumes normal speed,
-# and 'b' is a special surprise :)
+# q for quit.
 
 use strict;
 
@@ -15,14 +13,13 @@ BEGIN
   unshift @INC, '../blib/arch/';
   }
 
-use SDL::App::FPS::Demo;
+use SDL::App::FPS::MyMandel;
 
-my $options = { width => 640, height => 480, max_fps => 40};
+my $options = { width => 640, height => 480, max_fps => 40 };
 
-print
-  "SDL::App::FPS Demo v0.01 (C) 2002,2003 by Tels <http://Bloodgate.com/>\n\n";
+print "SDL Mandelbrot (C) 2002,2003 by Tels <http://Bloodgate.com/>\n\n";
 
-my $app = SDL::App::FPS::Demo->new( $options );
+my $app = SDL::App::FPS::MyMandel->new( $options );
 $app->main_loop();
 
 print "Running time was ", int($app->now() / 10)/100, " seconds\n";
@@ -30,6 +27,4 @@ print "Minimum framerate ",int($app->min_fps()*10)/10,
       " fps, maximum framerate ",int($app->max_fps()*10)/10," fps\n";
 print "Minimum time per frame ", $app->min_frame_time(),
       " ms, maximum time per frame ", $app->max_frame_time()," ms\n";
-print "Maximum number of rectangles: ",
-       scalar @{$app->{demo}->{rectangles}},"\n\n";
 print "Thank you for playing!\n";

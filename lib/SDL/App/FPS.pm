@@ -14,6 +14,7 @@ use SDL::Event;
 
 use SDL::App::FPS::Timer;
 use SDL::App::FPS::EventHandler;
+use SDL::App::FPS::Group;
 
 require DynaLoader;
 require Exporter;
@@ -21,7 +22,7 @@ require Exporter;
 use vars qw/@ISA $VERSION/;
 @ISA = qw/Exporter DynaLoader/;
 
-$VERSION = '0.08';
+$VERSION = '0.09';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -37,11 +38,12 @@ sub new
   $self->pre_init_handler();
   $self->create_window();
   
-  $self->{now} = SDL::GetTicks();
-  $self->{start_time} = $self->{now};		# for time_warp
-  $self->{current_time} = $self->{now};		# warped clock (current frame)
-  $self->{lastframe_time} = $self->{now};	# warped clock (last frame)
-  $self->{lastframes} = [ $self->{now} ];
+  my $app = $self->{_app};
+  $app->{now} = SDL::GetTicks();
+  $app->{start_time} = $app->{now};		# for time_warp
+  $app->{current_time} = $app->{now};		# warped clock (current frame)
+  $app->{lastframe_time} = $app->{now};		# warped clock (last frame)
+  $app->{lastframes} = [ $app->{now} ];
 
   $self->post_init_handler();
 
@@ -61,8 +63,10 @@ sub _init
     {
     $args = { @_ };
     }
-  $self->{options} = {};
-  my $opt = $self->{options};
+  $self->{_app} = {};
+  my $app = $self->{_app};
+  $app->{options} = {};
+  my $opt = $app->{options};
   foreach my $key (keys %$args)
     {
     $opt->{$key} = $args->{$key};
@@ -82,8 +86,8 @@ sub _init
     $opt->{$key} = $def->{$key} unless exists $opt->{$key};
     }
 
-  $self->{in_fullscreen} = 0;			# start windowed
-  $self->fullscreen() if $opt->{fullscreen};	# switch to fullscreen
+  $app->{in_fullscreen} = 0;			# start windowed
+  $app->fullscreen() if $opt->{fullscreen};	# switch to fullscreen
   
   # limit to some sensible value
   $opt->{max_fps} = 500 if $opt->{max_fps} > 500;
@@ -93,29 +97,29 @@ sub _init
   $opt->{height} = 16 if $opt->{height} < 16;
   $opt->{depth} = 8 if $opt->{depth} < 8;
 
-  $self->{event} = SDL::Event->new();		# create an event handler
+  $app->{event} = SDL::Event->new();		# create an event handler
 
-  $self->{time_warp} = $opt->{time_warp};	# copy to modify it later
+  $app->{time_warp} = $opt->{time_warp};	# copy to modify it later
 
   # setup the framerate monitoring
-  $self->{min_time} = 1000 / $opt->{max_fps};
+  $app->{min_time} = 1000 / $opt->{max_fps};
   # contains the FPS avaraged over the last second
-  $self->{current_fps} = 0;
-  $self->{min_fps} = 10000;			# insanely high to get lower
-  $self->{max_fps} = 0;				# insanely low to get higher
-  $self->{min_frame_time} = 10000; 		# how long per frame min?
-  $self->{max_frame_time} = 0; 			# how long per frame max?
-  $self->{wake_time} = 0;			# adjust for fps capping
-  $self->{frames} = 0;				# number of frames
-  $self->{fps_monitor_time} = 1000;		# 1 second (hardcode for now)
-  $self->{ramp_warp_target} = 0;		# disable ramping
-  $self->{ramp_warp_time} = 0;			# disable ramping
+  $app->{current_fps} = 0;
+  $app->{min_fps} = 10000;			# insanely high to get lower
+  $app->{max_fps} = 0;				# insanely low to get higher
+  $app->{min_frame_time} = 10000; 		# how long per frame min?
+  $app->{max_frame_time} = 0; 			# how long per frame max?
+  $app->{wake_time} = 0;			# adjust for fps capping
+  $app->{frames} = 0;				# number of frames
+  $app->{fps_monitor_time} = 1000;		# 1 second (hardcode for now)
+  $app->{ramp_warp_target} = 0;			# disable ramping
+  $app->{ramp_warp_time} = 0;			# disable ramping
   
-  $self->{timers} = {};				# none yet
-  $self->{event_handler} = {};			# none yet
+  $app->{timers} = {};				# none yet
+  $app->{event_handler} = {};			# none yet
 
-  $self->{next_timer_check} = 0;		# disable (always check)
-  $self->{quit} = 0;				# don't let handle_events quit
+  $app->{next_timer_check} = 0;		# disable (always check)
+  $app->{quit} = 0;				# don't let handle_events quit
   $self;
   }
 
@@ -128,15 +132,16 @@ sub option
   my $opt = $self->{options};
   if (@_ > 0)
     {
+    my $app = $self->{_app};
     $opt->{$key} = shift;
     if ($key eq 'max_fps')
       {
-      $self->{min_time} = 1000 / $opt->{max_fps};
-      $self->{wake_time} = 0;
+      $app->{min_time} = 1000 / $opt->{max_fps};
+      $app->{wake_time} = 0;
       }
     if ($key eq 'fullscreen')
       {
-      $self->{app}->fullscreen();
+      $app->{app}->fullscreen();
       }
     }
   return undef unless exists $opt->{$key};
@@ -146,25 +151,25 @@ sub option
 sub width
   {
   my $self = shift;
-  return $self->{app}->width();
+  $self->{_app}->{app}->width();
   }
 
 sub height
   {
   my $self = shift;
-  return $self->{app}->height();
+  $self->{_app}->{app}->height();
   }
 
 sub update
   {
   my $self = shift;
-  return $self->{app}->update(@_);
+  $self->{_app}->{app}->update(@_);
   }
 
 sub app
   {
   my $self = shift;
-  return $self->{app};
+  $self->{_app}->{app};
   }
 
 sub in_fullscreen
@@ -172,7 +177,7 @@ sub in_fullscreen
   # returns true for in fullscreen, false for in window
   my $self = shift;
 
-  $self->{in_fullscreen};
+  $self->{_app}->{in_fullscreen};
   }
 
 sub fullscreen
@@ -183,14 +188,15 @@ sub fullscreen
   # returns true for in fullscreen, false for in window
   my $self = shift;
 
+  my $app = $self->{_app};
   if (@_ > 0)
     {
     my $t = shift || 0; $t = 1 if $t != 0;
-    return $self->{in_fullscreen} if ($t == $self->{in_fullscreen});
+    return $app->{in_fullscreen} if ($t == $app->{in_fullscreen});
     }
-  $self->{in_fullscreen} = 1 - $self->{in_fullscreen};	# toggle
-  $self->{app}->fullscreen();				# switch
-  $self->{in_fullscreen};
+  $app->{in_fullscreen} = 1 - $app->{in_fullscreen};	# toggle
+  $app->{app}->fullscreen();				# switch
+  $app->{in_fullscreen};
   }
 
 sub create_window
@@ -202,8 +208,8 @@ sub create_window
     {
     push @opt, "-$k", $self->{$k};
     }
-  $self->{app} = SDL::App->new( @opt );
-  $self->fullscreen() if $self->{options}->{fullscreen};
+  $self->{_app}->{app} = SDL::App->new( @opt );
+  $self->{_app}->{app}->fullscreen() if $self->{_app}->{options}->{fullscreen};
   $self;
   }
 	
@@ -211,7 +217,7 @@ sub stop_time_warp_ramp
   {
   # disable time warp ramping when it is in progress (otherwise does nothing)
   my $self = shift;
-  $self->{ramp_warp_time} = 0;
+  $self->{_app}->{ramp_warp_time} = 0;
   }
 
 sub freeze_time
@@ -219,10 +225,11 @@ sub freeze_time
   # stop the waped clock (by simple setting time_warp to 0)
   my $self = shift;
 
-  $self->{time_warp_frozen} = $self->{time_warp};
-  $self->{time_warp} = 0;
+  my $app = $self->{_app};
+  $app->{time_warp_frozen} = $app->{time_warp};
+  $app->{time_warp} = 0;
   # disable ramping
-  $self->{ramp_warp_time} = 0;
+  $app->{ramp_warp_time} = 0;
   }
 
 sub time_is_frozen
@@ -230,7 +237,7 @@ sub time_is_frozen
   # return true if the time is currently frozen
   my $self = shift;
 
-  return $self->{time_warp} == 0;
+  $self->{_app}->{time_warp} == 0;
   }
 
 sub time_is_ramping
@@ -238,7 +245,7 @@ sub time_is_ramping
   # return true if the time warp is currently ramping (changing)
   my $self = shift;
 
-  return $self->{ramp_warp_time} != 0;
+  $self->{_app}->{ramp_warp_time} != 0;
   }
 
 sub thaw_time
@@ -247,10 +254,11 @@ sub thaw_time
   # re-enabling the clock. Does nothing when the clock is not frozen.
   my $self = shift;
 
-  return if $self->{time_warp} != 0;
-  $self->{time_warp} = $self->{time_warp_frozen};
+  my $app = $self->{_app};
+  return if $app->{time_warp} != 0;
+  $app->{time_warp} = $app->{time_warp_frozen};
   # disable ramping
-  $self->{ramp_warp_time} = 0;
+  $app->{ramp_warp_time} = 0;
   }
 
 sub ramp_time_warp
@@ -258,31 +266,32 @@ sub ramp_time_warp
   # $target_factor,$time_to_ramp
   my $self = shift;
 
+  my $app = $self->{_app};
   if (@_ == 0)
     {
-    if ($self->{ramp_warp_time} == 0)	# ramp in effect?
+    if ($app->{ramp_warp_time} == 0)	# ramp in effect?
       {
       return;				# no
       }
     else
       {
       return 
-       ($self->{ramp_warp_target}, $self->{ramp_warp_time}, 
-        $self->{time_warp}, $self->{ramp_warp_startwarp},
-        $self->{ramp_warp_startime});
+       ($app->{ramp_warp_target}, $app->{ramp_warp_time}, 
+        $app->{time_warp}, $app->{ramp_warp_startwarp},
+        $app->{ramp_warp_startime});
       }
     }
   # if target warp is already set, don't do anything
-  return if $self->{time_warp} == $_[0];
+  return if $app->{time_warp} == $_[0];
  
   # else setup a new ramp
-  ($self->{ramp_warp_target}, $self->{ramp_warp_time}) = @_;
-  $self->{ramp_warp_time} = abs(int($self->{ramp_warp_time})); 
-  $self->{ramp_warp_startwarp} = $self->{time_warp};
-  $self->{ramp_warp_starttime} = $self->{now};
-  $self->{ramp_warp_endtime} = $self->{now} + $self->{ramp_warp_time};
-  $self->{ramp_warp_factor_diff} = 
-   $self->{ramp_warp_target} - $self->{time_warp};
+  ($app->{ramp_warp_target}, $app->{ramp_warp_time}) = @_;
+  $app->{ramp_warp_time} = abs(int($app->{ramp_warp_time})); 
+  $app->{ramp_warp_startwarp} = $app->{time_warp};
+  $app->{ramp_warp_starttime} = $app->{now};
+  $app->{ramp_warp_endtime} = $app->{now} + $app->{ramp_warp_time};
+  $app->{ramp_warp_factor_diff} = 
+   $app->{ramp_warp_target} - $app->{time_warp};
   }
 
 sub _ramp_time_warp
@@ -290,23 +299,24 @@ sub _ramp_time_warp
   # do the actual ramping by computing a new time warp at start of frame
   my $self = shift;
 
+  my $app = $self->{_app};
   # no ramping in effect?
-  return if $self->{ramp_warp_time} == 0;
+  return if $app->{ramp_warp_time} == 0;
 
   # if we passed the end time, stop ramping
-  if ($self->{now} >= $self->{ramp_warp_endtime})
+  if ($app->{now} >= $app->{ramp_warp_endtime})
     {
-    $self->{ramp_warp_time} = 0;
-    $self->{time_warp} = $self->{ramp_warp_target};
+    $app->{ramp_warp_time} = 0;
+    $app->{time_warp} = $app->{ramp_warp_target};
     }
   else
     {
     # calculate the difference between now and the start ramp time
     # 600 ms from 1000 ms elapsed, diff is 2, so we have 2 * 600 / 1000 => 1.2
-    $self->{time_warp} = 
-     $self->{ramp_warp_startwarp} + 
-      ($self->{now} - $self->{ramp_warp_starttime}) *
-       $self->{ramp_warp_factor_diff} / $self->{ramp_warp_time}; 
+    $app->{time_warp} = 
+     $app->{ramp_warp_startwarp} + 
+      ($app->{now} - $app->{ramp_warp_starttime}) *
+       $app->{ramp_warp_factor_diff} / $app->{ramp_warp_time}; 
     }
   }
 
@@ -316,13 +326,14 @@ sub time_warp
   # the time_warp will be effective from the next frame onwards
   my $self = shift;
 
+  my $app = $self->{_app};
   if (@_ > 0)
     {
-    $self->{time_warp} = shift;
-    $self->{ramp_warp_target} = 0;		# disable ramping
-    $self->{ramp_warp_time} = 0;		# disable ramping
+    $app->{time_warp} = shift;			# set new value
+    $app->{ramp_warp_target} = 0;		# disable ramping
+    $app->{ramp_warp_time} = 0;			# disable ramping
     }
-  $self->{time_warp};
+  $app->{time_warp};
   }
 
 sub start_time
@@ -330,7 +341,7 @@ sub start_time
   # get the time when the app started in ticks
   my $self = shift;
   
-  $self->{start_time};
+  $self->{_app}->{start_time};
   }
 
 sub current_fps
@@ -338,7 +349,7 @@ sub current_fps
   # return current number of frames per second, averaged over the last 1000ms
   my $self = shift;
 
-  $self->{current_fps};
+  $self->{_app}->{current_fps};
   }
 
 sub min_fps
@@ -346,7 +357,7 @@ sub min_fps
   # return minimum fps we ever achieved
   my $self = shift;
 
-  $self->{min_fps};
+  $self->{_app}->{min_fps};
   }
 
 sub max_fps
@@ -354,7 +365,7 @@ sub max_fps
   # return maximum fps we ever achieved
   my $self = shift;
 
-  $self->{max_fps};
+  $self->{_app}->{max_fps};
   }
 
 sub max_frame_time
@@ -362,7 +373,7 @@ sub max_frame_time
   # return maximum time per frame ever
   my $self = shift;
 
-  $self->{max_frame_time};
+  $self->{_app}->{max_frame_time};
   }
 
 sub min_frame_time
@@ -370,7 +381,7 @@ sub min_frame_time
   # return minimum time per frame ever
   my $self = shift;
 
-  $self->{min_frame_time};
+  $self->{_app}->{min_frame_time};
   }
 
 sub frames
@@ -378,7 +389,7 @@ sub frames
   # return number of frames already drawn
   my $self = shift;
 
-  $self->{frames};
+  $self->{_app}->{frames};
   }
 
 sub now
@@ -386,7 +397,7 @@ sub now
   # return current time at the start of the frame in ticks, unwarped.
   my $self = shift;
 
-  $self->{now};
+  $self->{_app}->{now};
   }
 
 sub current_time
@@ -396,7 +407,7 @@ sub current_time
   # Note that the returned value will only change at the start of each frame.
   my $self = shift;
 
-  $self->{current_time};
+  $self->{_app}->{current_time};
   }
 
 sub lastframe_time
@@ -404,57 +415,58 @@ sub lastframe_time
   # return time at the start of the last frame. See current_time().
   my $self = shift;
 
-  $self->{lastframe_time};
+  $self->{_app}->{lastframe_time};
   }
 
 sub next_frame
   {
   my $self = shift;
   
-  $self->{frames}++;				# one more
+  my $app = $self->{_app};
+  $app->{frames}++;				# one more
  
   # get current time at start of frame, and wait a bit if we are too fast
   my $diff; 
-  ($self->{now},$diff,$self->{wake_time}) = 
-    _delay($self->{lastframes}->[-1],$self->{min_time},$self->{wake_time});
+  ($app->{now},$diff,$app->{wake_time}) = 
+    _delay($app->{lastframes}->[-1],$app->{min_time},$app->{wake_time});
 
   # advance our clock warped by time_warp
-  $self->{current_time} =
-    $self->{time_warp} * $diff + $self->{lastframe_time};
-  $self->_ramp_time_warp() if $self->{ramp_warp_time} != 0;
+  $app->{current_time} =
+    $app->{time_warp} * $diff + $app->{lastframe_time};
+  $self->_ramp_time_warp() if $app->{ramp_warp_time} != 0;
 
   # remember $now
-  push @{$self->{lastframes}}, $self->{now};
+  push @{$app->{lastframes}}, $app->{now};
   # track min/max time between two frames
-  $self->{min_frame_time} = $diff 
-   if $diff < $self->{min_frame_time}; 
-  $self->{max_frame_time} = $diff 
-   if $diff > $self->{max_frame_time}; 
+  $app->{min_frame_time} = $diff 
+   if $diff < $app->{min_frame_time}; 
+  $app->{max_frame_time} = $diff 
+   if $diff > $app->{max_frame_time}; 
 
   # keep only frame times over the last X milliseconds
-  while ($self->{lastframes}->[0] < ($self->{now} - $self->{fps_monitor_time}))
+  while ($app->{lastframes}->[0] < ($app->{now} - $app->{fps_monitor_time}))
     {
-    shift @{$self->{lastframes}};		# remove one
+    shift @{$app->{lastframes}};		# remove one
     }
 
   # calculate current_fps
-  my $time = $self->{now} - $self->{lastframes}->[0] + 1;
-  $self->{current_fps} = 1000 * scalar @{$self->{lastframes}} / $time;
+  my $time = $app->{now} - $app->{lastframes}->[0] + 1;
+  $app->{current_fps} = 1000 * scalar @{$app->{lastframes}} / $time;
   # update these timers only when the time to track the framerate was long
   # enough to make sense
   if ($time > 850)
     {
-    $self->{min_fps} = $self->{current_fps} if
-     $self->{current_fps} < $self->{min_fps}; 
-    $self->{max_fps} = $self->{current_fps} if
-     $self->{current_fps} > $self->{max_fps}; 
+    $app->{min_fps} = $app->{current_fps} if
+     $app->{current_fps} < $app->{min_fps}; 
+    $app->{max_fps} = $app->{current_fps} if
+     $app->{current_fps} > $app->{max_fps}; 
     }
 
   # now do something that takes time, like updating the world and drawing it
   $self->draw_frame(
-   $self->{current_time},$self->{lastframe_time},$self->{current_fps});
+   $app->{current_time},$app->{lastframe_time},$app->{current_fps});
 
-  $self->{lastframe_time} = $self->{current_time};
+  $app->{lastframe_time} = $app->{current_time};
   }  
 
 sub handle_events
@@ -464,7 +476,8 @@ sub handle_events
   my $self = shift;
 
   my $done = 0;
-  my $event = $self->{event};
+  my $app = $self->{_app};
+  my $event = $app->{event};
   # inner while to handle all events, not only one per frame
   while ($event->poll())			# got one event?
     {
@@ -472,12 +485,21 @@ sub handle_events
     # check event with all registered event handlers
     # TODO: group event handlers on type, and let event only be checked
     # by the appropriate handlers for speed
-    foreach my $id (keys %{$self->{event_handler}})
+
+    # hack for now: find all active handlers, and check event only with
+    # these
+    my $handler = $app->{event_handler};
+    my @active = ();
+    foreach my $id (keys %$handler)
       {
-      $self->{event_handler}->{$id}->check($event);
+      push @active, $handler->{$id} if $handler->{$id}->is_active();
+      }
+    foreach my $h (@active)
+      {
+      $h->check($event);
       }
     }
-  $done += $self->{quit};	# if an event handler set it, terminate
+  $done += $app->{quit};	# if an event handler set it, terminate
   }
 
 sub quit
@@ -485,7 +507,7 @@ sub quit
   # can be called to quit the application
   my $self = shift;
 
-  $self->{quit} = 1;		# make next handle_events quit
+  $self->{_app}->{quit} = 1;		# make next handle_events quit
   }
 
 sub pause
@@ -493,26 +515,27 @@ sub pause
   # can be called to let the application to wait for the next event
   my $self = shift;
 
+  my $app = $self->{_app};
   if (@_ == 0)
     {
-    $self->{event}->wait();
-    $self->handle_event($self->{event});	# give handler a chance
+    $app->{event}->wait();
+    $app->handle_event($app->{event});	# give handler a chance
     }
   else
     {
     my $type;
-    while ($self->{event}->wait())
+    while ($app->{event}->wait())
       {
-      $type = $self->{event}->type();
+      $type = $app->{event}->type();
       if ($type == SDL_QUIT)			# don't ignore this one
         {
-        $self->{quit} = 1; last;		# quit ASAP
+        $app->{quit} = 1; last;			# quit ASAP
         }
       foreach my $t (@_)
         {
         if ($t == $type)
           {
-          $self->handle_event($self->{event});	# give handler a chance
+          $self->handle_event($app->{event});	# give handler a chance
           return;
           }
         }
@@ -526,21 +549,22 @@ sub main_loop
 
   # TODO:
   # don't call handle_events() when there are no events? Does this matter?
-  while (!$self->{quit} && $self->handle_events() == 0)
+  my $app = $self->{_app};
+  while (!$app->{quit} && $self->handle_events() == 0)
     {
-    if (scalar keys %{$self->{timers}} > 0)			# no timers?
+    if (scalar keys %{$app->{timers}} > 0)			# no timers?
       {
-      if ($self->{time_warp} > 0)
+      if ($app->{time_warp} > 0)
         {
         $self->expire_timers() 
-         if (($self->{next_timer_check} == 0) ||
-            ($self->{current_time} >= $self->{next_timer_check}));
+         if (($app->{next_timer_check} == 0) ||
+            ($app->{current_time} >= $app->{next_timer_check}));
         }
       else
         {
         $self->expire_timers() 
-         if (($self->{next_timer_check} == 0) ||
-           ($self->{current_time} <= $self->{next_timer_check}));
+         if (($app->{next_timer_check} == 0) ||
+           ($app->{current_time} <= $app->{next_timer_check}));
        }
       }
     $self->next_frame();		# update the screen and fps monitor
@@ -560,15 +584,16 @@ sub add_timer
   my $self = shift;
   my ($time, $count, $delay, $rand, $callback, @args) = @_;
 
+  my $app = $self->{_app};
   my $timer = SDL::App::FPS::Timer->new( 
-    $time, $count, $delay, $rand, $self->{current_time}, $callback,
+    $time, $count, $delay, $rand, $app->{current_time}, $callback,
     $self, @args);
   return undef if $timer->count() == 0;		# timer fired once, and expired
 
   # otherwise remember it
-  $self->{timers}->{$timer->{id}} = $timer;
-  $self->{next_timer_check} = 0;		# disable (always check)
-  $self->{timer_modified} = 1;
+  $app->{timers}->{$timer->{id}} = $timer;
+  $app->{next_timer_check} = 0;			# disable (always check)
+  $app->{timer_modified} = 1;
   # return it's id
   $timer->{id};
   }
@@ -578,34 +603,35 @@ sub expire_timers
   # check all timers for whether they have expired (need to fire) or not
   my $self = shift;
 
-  return 0 if scalar keys %{$self->{timers}} == 0;	# no timers?
-  return 0 if $self->{time_warp} == 0;			# time stand still
+  my $app = $self->{_app};
+  return 0 if scalar keys %{$app->{timers}} == 0;	# no timers?
+  return 0 if $app->{time_warp} == 0;			# time stand still
 
-  $self->{timer_modified} = 0;				# track add/del
-  my $now = $self->{current_time};			# timers are warped
-  my $time_warp = $self->{time_warp};			# timers are warped
-  foreach my $id (keys %{$self->{timers}})
+  $app->{timer_modified} = 0;				# track add/del
+  my $now = $app->{current_time};			# timers are warped
+  my $time_warp = $app->{time_warp};			# timers are warped
+  foreach my $id (keys %{$app->{timers}})
     {
-    my $timer = $self->{timers}->{$id};
+    my $timer = $app->{timers}->{$id};
     $timer->due($now,$time_warp);			# let timer fire
     # remember nearest time to fire a time
-    if ($self->{time_warp} > 0)
+    if ($app->{time_warp} > 0)
       {
-      $self->{next_timer_check} = $timer->{next_shot}
-        if $timer->{next_shot} < $self->{next_timer_check} ||
-         $self->{next_timer_check} == 0;
+      $app->{next_timer_check} = $timer->{next_shot}
+        if $timer->{next_shot} < $app->{next_timer_check} ||
+         $app->{next_timer_check} == 0;
       }
     else
       {
-      $self->{next_timer_check} = $timer->{next_shot}
-        if $timer->{next_shot} > $self->{next_timer_check} ||
-         $self->{next_timer_check} == 0;
+      $app->{next_timer_check} = $timer->{next_shot}
+        if $timer->{next_shot} > $app->{next_timer_check} ||
+         $app->{next_timer_check} == 0;
       }
-   $self->{timer_modified} = 1 && delete $self->{timers}->{$id}
+   $app->{timer_modified} = 1 && delete $app->{timers}->{$id}
      if $timer->count() == 0;				# remove any expired
     }
-  $self->{next_timer_check} = 0			# disable (always check)
-   if $self->{timer_modified} != 0;	
+  $app->{next_timer_check} = 0			# disable (always check)
+   if $app->{timer_modified} != 0;	
   }
 
 sub timers
@@ -613,7 +639,7 @@ sub timers
   # return amount of still active timers 
   my $self = shift;
 
-  return scalar keys %{$self->{timers}};
+  return scalar keys %{$self->{_app}->{timers}};
   }
 
 sub get_timer
@@ -621,8 +647,8 @@ sub get_timer
   # return ptr to a timer with id $id
   my ($self,$id) = @_;
 
-  return unless exists $self->{timers}->{$id};
-  $self->{timers}->{$id};
+  return unless exists $self->{_app}->{timers}->{$id};
+  $self->{_app}->{timers}->{$id};
   }
 
 sub del_timer
@@ -632,9 +658,10 @@ sub del_timer
 
   $id = $id->{id} if ref($id) eq 'SDL::App::FPS::Timer';
 
-  $self->{next_timer_check} = 0;		# disable (always check)
-  $self->{timer_modified} = 1;
-  delete $self->{timers}->{$id};
+  my $app = $self->{_app};
+  $app->{next_timer_check} = 0;		# disable (always check)
+  $app->{timer_modified} = 1;
+  delete $app->{timers}->{$id};
   }
 
 ##############################################################################
@@ -643,18 +670,29 @@ sub del_timer
 sub add_event_handler
   {
   # add an event handler
-  my ($self,$type,$kind,$callback) = @_;
+  my ($self,$type,$kind,$callback,@args) = @_;
 
-  my $handler = SDL::App::FPS::EventHandler->new($type,$kind,$callback,$self);
+  my $handler =
+    SDL::App::FPS::EventHandler->new($type,$kind,$callback,$self,@args);
 
-  $self->{event_handler}->{$handler->{id}} = $handler;
+  $self->{_app}->{event_handler}->{$handler->{id}} = $handler;
   }
 
 sub del_event_handler
   {
   my ($self,$handler) = @_;
 
-  delete $self->{event_handler}->{$handler->{id}};
+  delete $self->{_app}->{event_handler}->{$handler->{id}};
+  }
+
+##############################################################################
+# create a new group
+
+sub add_group
+  {
+  my ($self) = @_;
+
+  SDL::App::FPS::Group->new( app => $self);
   }
 
 ##############################################################################
@@ -920,11 +958,14 @@ the events triggers by the timers will still happen at the correct time.
 
 =head1 SUBCLASSING
 
-It is a good idea to store additional data under C<$self->{name_of_subclass}>,
-this way it does not interfere with changes in the base class.
+SDL::App::FPS encapsulates any of it's private data under the key C<_app>.
+So you can use any hash key other than C<_app> to store you data, no need
+to encapsulate it further unless you plan on making your class subclassable,
+too.
 
-Also, when adding subroutines to your subclass, prefix them with '__' so that
-they do not interfere with changes in this base class.
+When adding subroutines to your subclass, prefix them with something unique,
+like C<__> or C<_myapp_> so that they do not interfere with changes in this
+base class.
 
 Do not access the data in the baseclass directly, always use the accessor
 methods!
@@ -1093,6 +1134,13 @@ Delete the given timer (or the one by the given id).
 =item timers()
 
 Return count of active timers.
+
+=item add_group
+
+	$group = $app->add_group();
+
+Convienence method to create a new SDL::App::FPS::Group and bind it to this
+application.
 
 =item add_event_handler
 
@@ -1296,7 +1344,7 @@ Removes unnecc. timers from the list.
 
 =head1 AUTHORS
 
-(c) Tels <http://bloodgate.com/>
+(c) 2002, 2003, Tels <http://bloodgate.com/>
 
 =head1 SEE ALSO
 

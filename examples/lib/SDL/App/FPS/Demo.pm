@@ -105,7 +105,7 @@ sub _demo_draw_rectangle
   $r->x($rect->{x});
   $r->y($rect->{y});
 
-  $self->{app}->fill($r,$color);
+  $self->app()->fill($r,$color);
   }
 
 sub draw_frame

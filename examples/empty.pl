@@ -1,10 +1,5 @@
 #!/usr/bin/perl -w
 
-# a simple game, press 'f' to toggle fullscreen, space to pause it, and
-# the left or right mousebutton for slow motion respectively fast forward.
-# 'q' also quits the application. middle mouse button resumes normal speed,
-# and 'b' is a special surprise :)
-
 use strict;
 
 BEGIN
@@ -17,10 +12,9 @@ BEGIN
 
 use SDL::App::FPS::Empty;
 
-# fill in here options or use Getopt::Long for command line
 my $options = { width => 640, height => 480, max_fps => 500 };
 
-print "Empty benchmark v0.01 (C) 2002 by Tels <http://Bloodgate.com/>\n\n";
+print "Empty benchmark v0.01 (C) 2002-2003 by Tels <http://Bloodgate.com/>\n\n";
 
 my $app = SDL::App::FPS::Empty->new( $options );
 $app->main_loop();

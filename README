@@ -6,6 +6,8 @@ This base class can be easy subclassed for your own projects. It is a basic
 building block for building SDL applications that need a fast framerate
 with event handling before each frame.
 
+In examples/, there is a complete example to show you the features. 
+
 Features
 ========
 
@@ -19,6 +21,14 @@ Features
   which can even be changed on a frame-by-frame basis. This allows effects
   like slow motion or fast forward, complete with ramping (e.g. slowly slowing
   down).
+* has timers that are syncronized with the warped clock and only expire at
+  the start of each frame (and not in-mid frame). Their overshot value still
+  allows you to determine the exact time the timer should have fired, so you
+  can correct for this.
+
+This setup allows you to get away without any locking or worry about the
+simulation code removing and object that is currently drawn or something
+along these lines.
 
 Installation
 ============
@@ -30,13 +40,14 @@ Installation
 
 	tar -xzf SDL-App-FPS-0.02.tar.gz
 
-* Check the signature. Download my key from http://bloodgate.com/ or from my
-  CPAN directory. Then do in the build directory (where you unwrapped stuff):
+* Check the signature. Download my key from http://bloodgate.com/tels.asc or
+  from my CPAN directory. Then do in the build directory (where you unwrapped
+  stuff):
 
 	cpansign -v
 
 * if the signature verifies OK, proceed. Otherwise NOTIFY ME IMMIDIATELY. Do
-  NOT INSTALL THE PACKAGE! Your system might get compromised.
+  NOT INSTALL THE PACKAGE! Your system might get compromised!
 
 * Build the make file:
 
@@ -50,6 +61,8 @@ Installation
 
 	make test
 
+* If some tests fail, please notify me.
+
 * If all tests pass, install as root:
 
 	su
@@ -57,12 +70,13 @@ Installation
 	make install
 	exit
 
-* If some tests fail, please notify me.
+Go to the example/ directory and run the example application for fun. Enjoy!
 
 Usage
 =====
 
-Look at the files in t/ (MyFPS.pm and myfpm.t) for how to use it.
+Look at the files in t/ (MyFPS.pm and myfpm.t) and the example app for how to
+use it.
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

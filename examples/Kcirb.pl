@@ -2,7 +2,8 @@
 
 # a simple game, press 'f' to toggle fullscreen, space to pause it, and
 # the left or right mousebutton for slow motion respectively fast forward.
-# 'q' also quits the application.
+# 'q' also quits the application. middle mouse button resumes normal speed,
+# and 'b' is a special surprise :)
 
 use strict;
 
@@ -25,7 +26,9 @@ $app->main_loop();
 
 print "Running time was ", int($app->now() / 10)/100, " seconds\n";
 print "Minimum framerate ",int($app->min_fps()*10)/10,
-      " fps, maximum framerate ",int($app->max_fps()*10)/10," fps\n\n";
+      " fps, maximum framerate ",int($app->max_fps()*10)/10," fps\n";
 print "Minimum time per frame ", $app->min_frame_time(),
-      " ms, maximum time per frame ", $app->max_frame_time()," ms\n\n";
+      " ms, maximum time per frame ", $app->max_frame_time()," ms\n";
+print "Maximum number of rectangles: ",
+       scalar @{$app->{kcirb}->{rectangles}},"\n\n";
 print "Thank you for playing Kcirb!\n";

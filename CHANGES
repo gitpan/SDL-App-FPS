@@ -48,6 +48,19 @@ SDL::App::FPS:
  * re-ordered METHODS in FPS.pm: move the automatically used methods to bottom
  * added tests for Timer.pm
 
+2002-12-27 v0.05 Tels - 50 tests 
+ * timers can have additional arguments to callback, test for them
+ * timers allow negative target time and negative delay time
+ * fixed: add_timer() really add timer, instead of replacing the first one
+ * timer take a 'rand' argument to randomize their times (not used yet)
+ * pass overshot value to timer callback
+ * fixed README
+ * don't start time warp ramp if we are already at the target warp
+ * randomize rectangle sizes in example application
+ * add "shots" to example application (shows nested timers with overshot
+   correction!)
+ * added key 'b' to example application, wait for some action, then try it!
+
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

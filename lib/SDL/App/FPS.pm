@@ -18,7 +18,7 @@ use Exporter;
 use vars qw/@ISA $VERSION/;
 @ISA = qw/Exporter/;
 
-$VERSION = '0.04';
+$VERSION = '0.05';
 
 sub new
   {
@@ -242,7 +242,10 @@ sub ramp_time_warp
         $self->{ramp_warp_startime});
       }
     }
-  # else setup a new ramping
+  # if target warp is already set, don't do anything
+  return if $self->{time_warp} == $_[0];
+ 
+  # else setup a new ramp
   ($self->{ramp_warp_target}, $self->{ramp_warp_time}) = @_;
   $self->{ramp_warp_time} = abs(int($self->{ramp_warp_time})); 
   $self->{ramp_warp_startwarp} = $self->{time_warp};
@@ -543,14 +546,15 @@ sub add_timer
   # be a coderef, which will be called once the timer fires with:
   # $coderef($timer->{id},$timer);
   my $self = shift;
-  my ($time,$count,$delay,$callback) = @_;
+  my ($time, $count, $delay, $rand, $callback, @args) = @_;
 
   my $timer = SDL::App::FPS::Timer->new( 
-    $time, $count, $delay, $self->{current_time}, $callback, $self);
+    $time, $count, $delay, $rand, $self->{current_time}, $callback,
+    $self, @args);
   return undef if $timer->count() == 0;		# timer fired once, and expired
 
   # otherwise remember it
-  $self->{timers} = { $timer->{id} => $timer };
+  $self->{timers}->{$timer->{id}} = $timer;
   # return it's id
   $timer->{id};
   }
@@ -563,9 +567,10 @@ sub expire_timers
   return 0 if scalar keys %{$self->{timers}} == 0;	# no timers?
 
   my $now = $self->{current_time};			# timers are warped
+  my $time_warp = $self->{time_warp};			# timers are warped
   foreach my $id (keys %{$self->{timers}})
     {
-    $self->{timers}->{$id}->due($now);			# let timer fire
+    $self->{timers}->{$id}->due($now,$time_warp);	# let timer fire
     delete $self->{timers}->{$id}
      if $self->{timers}->{$id}->count() == 0;		# remove any expired
     }
@@ -684,6 +689,10 @@ That's all!
 
 This package provides you with a base class to write your own SDL Perl
 applications.
+
+=head2 Why and how
+
+=head2 Timers
 
 =head1 SUBCLASSING
 
@@ -812,12 +821,15 @@ Call the SDL::App's update method.
 
 =item add_timer()
 
-	$app->add_timer($time,$count,$delay,$callback);
+	$app->add_timer($time,$count,$delay,$callback, @args ]);
 
 Adds a timer to the list of timers. When time is 0, the timer fires
 immidiately (calls $callback). When the count was 1, and time 0, then
 the timer will not be added to the list (it already expired) and undef will be
 returned. Otherwise the unique timer id will be returned.
+
+C<@args> can be empty, otherwise the contents of these will be passed to the
+callback function as additional parameters.
 
 The timer will fire for the first time at C<$time> ms after the time it was
 added, and then wait C<$delay> ms between each shot. if C<$count> is positive,

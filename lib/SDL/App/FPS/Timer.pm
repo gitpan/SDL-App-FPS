@@ -12,7 +12,7 @@ use Exporter;
 use vars qw/@ISA $VERSION/;
 @ISA = qw/Exporter/;
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
   {
   my $id = 1;
@@ -26,9 +26,11 @@ sub new
   my $self = {}; bless $self, $class;
 
   $self->{id} = ID();
-  $self->{time} = abs(shift);			# positive time	 
+  # times can be negative, for instance when clock goes backwards!
+  $self->{time} = shift;			
   $self->{count} = shift;			# count < 0 => infitite
-  $self->{delay} = abs(shift);			# positive delay	 
+  $self->{delay} = shift || $self->{time};
+  $self->{rand} = abs(shift || 0);		# wiggle firing
   $self->{start} = shift;			# time we started to live
   $self->{code} = shift;			# callback
   if (ref($self->{code}) ne 'CODE')
@@ -81,18 +83,32 @@ sub _fire
   # our next shot will be then (regardless of when this shot was fired)
   $self->{next_shot} += $self->{delay};			
   $self->{count}-- if $self->{count} > 0;		# one shot less
+  $self->{time} = $self->{delay};			# allow a positive
+							# time and then
+							# negative delays
   # fire timer now
-  &{$self->{code}}($self->{self}, $self,$self->{id},@{$self->{args}});
+  &{$self->{code}}( 
+    $self->{self}, $self, $self->{id}, $self->{overshot}, @{$self->{args} });
   1;
   }
 
 sub due
   {
   # check whether this timer is due or not
-  my ($self,$now) = @_;
+  my ($self,$now,$time_warp) = @_;
  
   $self->{due} = 0;				# not yet
-  return 0 if $self->{count} == 0 || $now < $self->{next_shot};
+  return 0 if ($time_warp == 0) || ($self->{count} == 0);
+
+  # freeze backwards looking timers if time goes forward and vice versa
+  if ($self->{time} > 0)
+    {
+    return 0 if $time_warp < 0 || $now < $self->{next_shot};
+    }
+  else
+    {
+    return 0 if $time_warp > 0 || $now > $self->{next_shot};
+    }
   $self->_fire($now); 
   }
 
@@ -119,9 +135,10 @@ SDL::App::FPS::Timer - a timer class for SDL::App::FPS
 		$time_to_first_shot,
 		$count,
 		$delay_between_shots,
+		$randomize,
 		$now,
 		$callback,
-		$arguments_to_callback
+		@arguments_to_callback
 	);
 
 =head1 DESCRIPTION
@@ -134,10 +151,13 @@ not to use it directly.
 Once the timer has expired, the callback code (CODE ref) is called with the
 following parameters:
 
-	&{$callback}($self,$id,@arguments);
+	&{$callback}($self,$timer,$id,$overshot,@arguments);
 
-C<$self> is the timer itself, C<$id> it's id, and the additional arguments are
-just the $app that you ar running it (e.g. the object of type SDL::App::FPS).
+C<$self> is the app the timer resides in (e.g. the object of type
+SDL::App::FPS), C<$timer> is the timer itself, C<$id> it's id, C<$overshot>
+is the time the timer is late (e.g. it fires now, but should have fired
+C<-$overshot> ms ago) and the additional arguments are whatever was passed
+when the timer was created.
 
 =head1 METHODS
 
@@ -145,7 +165,26 @@ just the $app that you ar running it (e.g. the object of type SDL::App::FPS).
 
 =item new()
 
-Creates a new timer.
+	my $timer = SDL::App::FPS::Timer->new(
+		$time_to_first_shot,
+		$count,
+		$delay_between_shots,
+		$randomize,
+		$now,
+		$callback,
+		@arguments_to_callback
+	);
+
+Creates a new timer that will first fire at $time_to_first_shot from $now on
+(assuming $now is the current time), fire at most of $count times (negative
+counts means infinitely often), and between each shot will wait for $delay.
+Both initial time and delay are in ms.
+
+The randomize parameter should be smaller than the time and/or delay, it
+will be used to randomize the delay times.
+
+If you setup a timer with a delay of 1000 ms and a randomize value of 100, the
+earliest time it will fire is 900 ms, and the latest time would be 1100 ms.
 
 =item next_shot()
 

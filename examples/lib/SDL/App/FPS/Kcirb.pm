@@ -73,6 +73,11 @@ sub _kcirb_animate_rectangle
   # hit a wall?
   if ($col > 0)
     {
+    if ($rect->{col} != 0)
+      {
+      # destroy us
+      return 1;
+      }
     # scatter the new angle a bit (avoids endless loops)
     $rect->{angle} += rand(12) - 4;		# skew the scatter to one side
     $rect->{angle} += 360 if $rect->{angle} < 0;
@@ -82,7 +87,7 @@ sub _kcirb_animate_rectangle
     $rect->{y_s} = $rect->{y};
     $rect->{now} = $self->current_time();
     }
-
+  0;
   }
 
 sub _kcirb_draw_rectangle
@@ -113,11 +118,14 @@ sub draw_frame
     }
 
   # move them
-  # undraw the rectangle(s) at the current location
+  my @keep = ();
   foreach my $rect (@{$self->{kcirb}->{rectangles}})
     {
-    $self->_kcirb_animate_rectangle($rect);
+    my $rc = $self->_kcirb_animate_rectangle($rect);
+    # keep it ?
+    push @keep, $rect if ($rc == 0);
     }
+  $self->{kcirb}->{rectangles} = [ @keep ];
 
   # redraw the rectangles at their current location
   foreach my $rect (@{$self->{kcirb}->{rectangles}})
@@ -162,6 +170,21 @@ sub handle_event
         $self->freeze_time();
         }
       }
+    elsif ($key == SDLK_b)
+      {
+      # run clock if it is currently halted
+      $self->thaw_time() if $self->time_is_frozen();
+      # let clock go backwards for a time
+      $self->ramp_time_warp (-1, 2000);
+      # and add a timer to set it automatically going forward again
+      # Note that the clock goes backward, so we must set a negative target
+      # time :)
+      $self->add_timer ( -3000, 1, 0, 0, 
+        sub {
+          my $self = shift; 
+          $self->ramp_time_warp (1, 2000); 
+        } );
+      }
     }
   elsif ($type == SDL_MOUSEBUTTONDOWN && 
      !$self->time_is_ramping() && !$self->time_is_frozen())
@@ -170,7 +193,7 @@ sub handle_event
     my $button = $event->button();
     if ($button == 1)				# left button
       {
-      $self->ramp_time_warp('3',1500);		# ramp up
+      $self->ramp_time_warp('2',1500);		# ramp up
       }
     elsif ($button == 3)			# right button
       {
@@ -194,7 +217,46 @@ sub post_init_handler
   $self->{kcirb}->{black} = new SDL::Color (-r => 0, -g => 0, -b => 0);
   $self->{kcirb}->{PI} = 3.141592654;
 
-  $self->add_timer(2000,-1, 3000, \&_kcirb_add_rect);
+  # from time to time add a rectangle
+  $self->add_timer(800, -1, 3000, 0, \&_kcirb_add_rect);
+  # from time to time start a timer which will "fire" rectangles 
+  $self->add_timer(1200, -1, 4000, 0, \&_kcirb_add_fire);
+  }
+
+sub _kcirb_add_fire
+  {
+  my $self = shift;
+
+  $self->add_timer(100, 12, 80, 0, \&_kcirb_add_shot);
+  }
+
+sub _kcirb_add_shot
+  {
+  # add a shot to the screen going from right to left
+  my ($self,$timer,$timer_id,$overshot) = @_;
+    
+  # comment in this line to see how the row of shots is no longer
+  # uniform due to timer firing at start of frame, not when it is due
+  #$overshot = 0;
+
+  my $w = $self->width();
+  my $h = $self->height();
+
+  my $k = { 
+    x => $w - 8,
+    y => $h - 16,
+    w => 4,
+    h => 4,
+    angle => 180,
+    speed => 250,			# in pixel/second
+    now => $self->current_time() - $overshot,
+    col => 1,				# destroy
+  };
+  
+  $k->{x_s} = $k->{x};		 # start x
+  $k->{y_s} = $k->{y};		 # start y
+  $k->{color} = new SDL::Color ( -r => 0xff, -g => 0xff, -b => 0xff );
+  push @{$self->{kcirb}->{rectangles}}, $k;
   }
 
 sub _kcirb_add_rect
@@ -208,11 +270,12 @@ sub _kcirb_add_rect
   my $k = { 
     x => ($w / 2) + rand($w / 10),
     y => ($h / 2) + rand($h / 10),
-    w => 32,
+    w => 32 + rand(16),
     h => 16,
     angle => rand(360),
     speed => rand(100)+150,			# in pixel/second
     now => $self->current_time(),
+    col => 0,					# bounce
   };
   
   # make it a perfect square, independ from screen resolution (works only

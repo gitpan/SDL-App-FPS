@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 15;
+use Test::More tests => 17;
 use strict;
 
 BEGIN
@@ -55,3 +55,10 @@ is ($app->min_frame_time() < 10000, 1, 'min_frame_time was set');
 # we cap at 60 frames, so the framerate should not be over 65 (some extra due
 # to timer inaccuracies)
 is ($app->current_fps() < 65, 1, 'fps < 65');
+
+# test that adding timer really adds more of them
+$app->add_timer( 2000,1,200, 0, sub {});
+is ($app->timers(), 1, '1 timer running');
+$app->add_timer( 2000,1,200, 0, sub {});
+is ($app->timers(), 2, '2 timer running');
+

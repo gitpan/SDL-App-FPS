@@ -35,7 +35,7 @@ sub draw_frame
  
   # if we have drawn more than 100 frames, add one timer to quit us immiately
   # Note: This is just for testing, normally you just call $self->quit(); :) 
-  $self->add_timer ( 0, 1, 0, \&_timer_quit, $self)
+  $self->add_timer ( 0, 1, 0, 0, \&_timer_quit, $self)
     if $self->frames() >= 100;
   }
   

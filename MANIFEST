@@ -12,6 +12,8 @@ examples/boulder/data/level0001.txt
 examples/boulder/save/quicksave.txt
 examples/boulder/lib/SDL/App/FPS/MyBoulder.pm
 examples/boulder/lib/SDL/App/FPS/MyCave.pm
+examples/config/mandel.cfg
+examples/config/opengl.cfg
 examples/demo.pl
 examples/empty.pl
 examples/event.pl
@@ -21,6 +23,9 @@ examples/opengl.pl
 examples/mouse.pl
 examples/colors.pl
 examples/keycheck.pl
+examples/data/courier.bmp
+examples/data/fps.fnt
+examples/data/console.fnt
 examples/lib/SDL/App/FPS/Demo.pm
 examples/lib/SDL/App/FPS/Empty.pm
 examples/lib/SDL/App/FPS/MyEvent.pm
@@ -53,3 +58,5 @@ t/timer.t
 t/mycfg.t				# cfg file reading
 t/config/client.cfg
 t/config/test.cfg
+t/test-data/fps.fnt
+t/test-data/console.fnt

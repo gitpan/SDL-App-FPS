@@ -14,13 +14,13 @@ not run its Makefile.PL or Build.PL.
 -----BEGIN PGP SIGNED MESSAGE-----
 
 SHA1 2727a367c164f4d58d2df97c34436635993cd23c BUGS
-SHA1 1549542f8f54aa0001340087bbbb0f3bb1708d06 CHANGES
+SHA1 ced6ff5f57da813f5ff24ff048402b6ed5248b04 CHANGES
 SHA1 aef6e5848fa96b4cf248c14f2d3ee88976cbb433 CREDITS
 SHA1 18727d0fac77358fdfa952be70f34c0ca2c7da47 FPS.xs
 SHA1 d6a6c30ee6d9ba6b9afab8bbf6a25e1b23c744e0 LICENSE
-SHA1 cb72e77bd4b2806914edaef39085cb4388ab4fa6 MANIFEST
-SHA1 0b780f4cd8b1be28aa1131206d966a9fafb5ca1d Makefile.PL
-SHA1 649348a0c494cc6bc561fa60a4f96bb575cbb9b0 NEW
+SHA1 f8e43951ba103d8a34058299ac1161b98fda8e74 MANIFEST
+SHA1 1bec5dcd61e733e16f3ae9cf26392ab470b49506 Makefile.PL
+SHA1 aa0b01d7439f37f99fd11bd13d43c87b9efaad24 NEW
 SHA1 88f30db4d0aa92b6ae789ab83d9fc846f4a8a81f README
 SHA1 a3e85fd47ed1285f222cdae1ebff4c8d664674c6 TODO
 SHA1 52f89972a7fc125c75e4f1fad9b1d14aab6f819b examples/boulder/boulder.pl
@@ -30,6 +30,11 @@ SHA1 128b9f606cf0d047cce6125d94026978ab5325a7 examples/boulder/lib/SDL/App/FPS/M
 SHA1 da39a3ee5e6b4b0d3255bfef95601890afd80709 examples/boulder/save/quicksave.txt
 SHA1 05c09059ceafcafb44cb7eab43ebdae02aae7676 examples/buttons.pl
 SHA1 419fd87d3aa8062c3337d12f5b44addc3e89bb07 examples/colors.pl
+SHA1 0c712c061c074abedcbfc748be38f1dfc23ae474 examples/config/mandel.cfg
+SHA1 6facc1aaa42ab05280466d9b3c491f07106bac1a examples/config/opengl.cfg
+SHA1 662601134b576256feffad5ed91d48e4bbeffe95 examples/data/console.fnt
+SHA1 fe7311d4b22922ce4a4e666174c0bf9e359d0ff3 examples/data/courier.bmp
+SHA1 8954faa20420dab7a70c0acb968d848cdc6de752 examples/data/fps.fnt
 SHA1 85c803f1b0f5cf0be70adf02e5d21624e7f933dd examples/demo.pl
 SHA1 10b58307f8e723edd65182fb75669d941fb17f83 examples/empty.pl
 SHA1 2a7cc010a592cd18e442c106f7b845236fb28646 examples/event.pl
@@ -42,14 +47,14 @@ SHA1 6d9db82d3396d3ceda1e96dabe6debac095379d7 examples/lib/SDL/App/FPS/MyEvent.p
 SHA1 c9bb15cb81d9ceb55fe3389c4fc964549c3e1b8b examples/lib/SDL/App/FPS/MyKeyCheck.pm
 SHA1 bb5ea6a6c2be3ccb9c80bc064ca0441ec4562a7b examples/lib/SDL/App/FPS/MyMandel.pm
 SHA1 a07d722cfa3f41c619236ee1fb902610f2d38d58 examples/lib/SDL/App/FPS/MyMouse.pm
-SHA1 ec53c181cafc131ddb0749f62c30c31550bbc6dd examples/lib/SDL/App/FPS/MyOpenGL.pm
+SHA1 09e23523242f6aaa9fdf0e36b5e50ecb79cdd5c3 examples/lib/SDL/App/FPS/MyOpenGL.pm
 SHA1 824ebc2ae683cda82d0330e04924c3f7aca2d197 examples/mandel.pl
 SHA1 c01ba7b5cd912efb4eb753f4cc7f242658032015 examples/mouse.pl
-SHA1 49ed2f1cd35616da75671dfb55ef53c7b87c2bc0 examples/opengl.pl
-SHA1 efc4cd791790748b3385785bfb5bf99adbc264ee lib/SDL/App/FPS.pm
-SHA1 4a244a9a3cf42fb3b9ce0218616db770143a345a lib/SDL/App/FPS/Button.pm
+SHA1 e0a1ecf190ceb60ea60f09de632ed5a1549dfc56 examples/opengl.pl
+SHA1 36018b3e86eecd89ea83e1304a2a74b6dfa5c2de lib/SDL/App/FPS.pm
+SHA1 46490a523a90ddb583f7e27a08b02a8f08db5e00 lib/SDL/App/FPS/Button.pm
 SHA1 5f98b8cdfeab77429547d629645bb7be8549ad26 lib/SDL/App/FPS/Color.pm
-SHA1 c9ab6cd0ca0358c2ee39e5c961fc357f1b054ce1 lib/SDL/App/FPS/EventHandler.pm
+SHA1 6e40afd02de4975ce795ef4bb509534d725be76b lib/SDL/App/FPS/EventHandler.pm
 SHA1 15553751e5c63cdb79bde6a2ba2d2b65bc6fa469 lib/SDL/App/FPS/Group.pm
 SHA1 21a369a148cf0f58ba48c636525c255b13fa8996 lib/SDL/App/FPS/Thingy.pm
 SHA1 7e4672ce82aa9607eec9ac4018252a13df4549a3 lib/SDL/App/FPS/Timer.pm
@@ -57,25 +62,27 @@ SHA1 a83c8906445a93ec6ebc3804435df4cbd43d5f68 t/SDL/App/MyFPS.pm
 SHA1 6c122d4a331d9e14aac12b5e094f5978424b815e t/SDL/App/MyFPS2.pm
 SHA1 41845f956bf349ff20125f086831426dbbbcc6c4 t/button.t
 SHA1 4a863a54e485c30feb3c4bf48860c35af3724185 t/color.t
-SHA1 2766dd91eaa454354fc8fb34fbdb582f9ca1d04b t/config/client.cfg
-SHA1 458bc1da069b4bacf68a11b81c8ee7caa633e0ef t/config/test.cfg
-SHA1 e0ba1fb87a69624cbba4120b13fd15bf83826821 t/event.t
+SHA1 cb327011656d343468b228dc8e52eeb85e842a03 t/config/client.cfg
+SHA1 6365f2040e5c100b6cbb6fea076db19cc9db4c93 t/config/test.cfg
+SHA1 cb072b13efd42c41154151da01f09837f9edf912 t/event.t
 SHA1 99c8c46b31250e3971b5cba399478d827f5ddde9 t/fps_timer.t
 SHA1 55a4805c0d62db74c53da47417a0bbf3490fa987 t/group.t
-SHA1 58cfafe6a7368cfa0094eb2a7231bea37e3e858c t/mycfg.t
+SHA1 45eee75896977e6843ff724d039e6d7f47f2cc4a t/mycfg.t
 SHA1 d61a996f1762017ded402cbb9884105f15bb4ca3 t/myfps.t
 SHA1 47224ac3001fcfb0f74ff86d0902ae399690421b t/myopt.t
+SHA1 14dd3a3969ac4aa6809c09f910fdb001481a7897 t/test-data/console.fnt
+SHA1 04bbc3b7c2d3e3374647b8cab31dd0acf3dd5287 t/test-data/fps.fnt
 SHA1 e26275bc4c63d360c2ec02c361ec44899575beb1 t/thingy.t
 SHA1 9d6f156d9ac31d7e8c7161e61e2a94f9d6c399b1 t/timer.t
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.0.6 (GNU/Linux)
 Comment: When cryptography is outlawed, bayl bhgynjf jvyy unir cevinpl.
 
-iQEVAwUBPn4bC3cLPEOTuEwVAQFXRQf+M7eDYHxSY1KnhB9SyrOiMONsmrUvkNxC
-sqY+aS8S+hDODgAspoEEDRaHxsY7TAXxgLfaudABL7DHNApJvMmGsJ4s8jSZws7y
-/uN0iJXKIVIg3qjF0tpGLy11cwSspK8egAf/3kYZm4D1AnjA7flHYvZyw57zpaEU
-r/7D7RvxngebTH+ma+bYSXeEuL2zh5VnnzrBoNS2EQR9HUOCa4caBy9dWmSCEMdH
-sXgfOThBBNvTyEcBuTDqOVEGZm5kFP6TkPEDkHr7QITdClqOCmgaD3DHe28bOkLv
-LNX3JXIqDV4RwPhBTD3aGs4Oe4/GJf+JGQwS7584Pp/IZ/O5varKXA==
-=I4Fu
+iQEVAwUBPqEsA3cLPEOTuEwVAQFOqgf+L/+ClJRp0uYEbLTUL4OEq6b2Py7y3+gA
+L9o7fEVoRlu+C3FMkUWYL1+KLdo9yb8dehWoW/Cgyjso6BuJBHlnDpCgZkjv0EYG
+KcQe3wBZr9UeOzSbAUthp3mbQNUD0YHqlUVJ6TiRjyWgBkeN3JvkNA2jtfvOz2+x
+Kz62SKwSmlDxsYNiAYcgwyxprmpHQXygZjcBqcissFMqNpoRXqK5mSnRSId5Pwbf
+9H2FyOQksuwkm/bkahwoGy4HvR2YmrfVcWUlhwPsKboRCY6F4z8K8VkKrM7vfTrG
+z2gNuHsDUFSDXW4UbTk8cQgXk8Gm/lAppAA4lgTGS3xeCyhdvovplw==
+=3c/h
 -----END PGP SIGNATURE-----

@@ -5,8 +5,10 @@ WriteMakefile(
     'NAME'		=> 'SDL::App::FPS',
     'VERSION_FROM'	=> 'lib/SDL/App/FPS.pm', # finds $VERSION
     'PREREQ_PM'		=> {
-			SDL => '1.20.2', # see http://bloodgate.com/sdl/
+			SDL => 'v1.20.3', # see http://bloodgate.com/sdl/
 			Config::Simple => '4.48',
+			Games::OpenGL::Font::2D => '0.05',
+			Games::Console => '0.02',
 			}, # e.g., Module::Name => 1.1
     'LIBS'		=> [ '-lSDL' ], # e.g., '-lm'
     'DEFINE'		=> '', # e.g., '-DHAVE_SOMETHING'

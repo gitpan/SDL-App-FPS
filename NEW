@@ -5,13 +5,31 @@ SDL::App::FPS:
 This file lists only what is new in the last release. For a full version 
 history see the CHANGES file.
 
-2003-03-23 v0.19 Tels - 306 tests
-  * added config file support via Config::Simple (defaults to reading
-    'config/client.cfg'), new parameter "config" to set the config file name
-  * support for parsing command line options via GetOpt::Long
-  * fixed: $app->option() was broken because it accessed the wrong namespace
-  * fixed: switching to fullscreen at new() didn't work since window didn't
-           exist yet
+2003-04-19 v0.20 Tels - 310 tests
+  * forgot to include the config files for mandel and opengl - oups.
+  * screenshots of OpenGL apps work now (needs SDL_perl v1.20.3)
+  * added support for wheel mouse buttons (needs SDL_perl v1.20.3)
+  * support for showing FPS (needs Games::OpenGL::Font::2D v0.05)
+  * support for console (needs Games::Console v0.02)
+  * added the following options:
+    - show_fps
+    - fps_font
+    - console_font
+    - debug
+    - useconsole
+  * reading in of config files describing a font (for fps and console),
+    thus the same font-bitmap, with different colors and sizes can be used
+  * fixed: option "name" is now known as "title", and really works (sets the
+    window title of the application window)
+  * when console is open, console receives keypresses instead of the app
+  * config reading reads options from default or [app], plus [input] section
+  * bind keys from config file (section [input]) to event handlers of the type
+    FPS_EVENT, this means you can use in your code:
+      $self->add_event_handler ( FPS_EVENT, 'some_event_name_here', ... );
+    and it will still work when somebody changes the config file (which even
+    your own app could do at runtime!)
+  * added: event_bound_to() to find out which keys needs pressing for an event
+  * fixed a bug in watch_event( pause => foo ); (didn't work)
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

@@ -16,10 +16,11 @@ use SDL::App;
 use SDL::Event;
 
 use SDL::App::FPS::Timer;
-use SDL::App::FPS::EventHandler;
+use SDL::App::FPS::EventHandler qw/FPS_EVENT char2type_kind/;
 use SDL::App::FPS::Group;
 use SDL::App::FPS::Button
- qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE/;
+ qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE
+    BUTTON_MOUSE_WHEEL_DOWN BUTTON_MOUSE_WHEEL_UP/;
 
 require Storable;
 
@@ -29,9 +30,10 @@ require Exporter;
 use vars qw/@ISA $VERSION @EXPORT_OK/;
 @ISA = qw/Exporter DynaLoader/;
 
-@EXPORT_OK = qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE/;
+@EXPORT_OK = qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE
+	BUTTON_MOUSE_WHEEL_DOWN BUTTON_MOUSE_WHEEL_UP FPS_EVENT/;
 
-$VERSION = '0.19';
+$VERSION = '0.20';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -54,13 +56,79 @@ sub new
   $app->{current_time} = 0;			# warped clock (current frame)
   $app->{lastframe_time} = 0;			# warped clock (last frame)
   $app->{clock} = { day => 0, hour => 0, minute => 0, second => 0, ms => 0 };
+  $app->{console_open} = 0;			# console closed (or disabled)
 
   $self->post_init_handler();
 
-  # switch to fullscreen?
-  $self->fullscreen() if $self->{_app}->{options}->{fullscreen};
+  my $opt = $app->{options};
 
+  # switch to fullscreen?
+  $self->fullscreen() if $opt->{fullscreen};
+ 
+  if ($opt->{showfps})
+    {
+    $app->{fps_font} = $self->_read_font_cfg($opt->{font_fps} || '');
+    # 1 and 2 - left, 3 and 4 right
+    $app->{fps_font}->align_x(Games::OpenGL::Font::2D::FONT_ALIGN_RIGHT()) 
+      if $opt->{showfps} > 2;
+    }
+
+  if ($opt->{useconsole})
+    {
+    $app->{console_font} = $self->_read_font_cfg($opt->{font_console} || '');
+    my $class = 'Games::Console::OpenGL';
+    $class = 'Games::Console::SDL' unless $opt->{useopengl};
+    my $class_new = $class; $class =~ s/::/\//g; $class .= '.pm';
+    require $class;
+    # create new console with options from config file
+    $opt->{console}->{font} = $app->{console_font};
+    $app->{console} = $class_new->new( $opt->{console} );
+    # and register it with our current size
+    $app->{console}->screen_width($app->{width});
+    $app->{console}->screen_height($app->{height});
+    }
+
+  $self->message ('Application successfully initialized.');
   $self;
+  }
+
+sub message
+  { 
+  my ($self,$msg) = @_; 
+
+  my $app = $self->{_app};
+  my $opt = $app->{options};
+  if ($opt->{useconsole})
+    {
+    $app->{console}->message(scalar localtime() . ' ' . $msg);
+    }
+  }
+
+sub _read_font_cfg
+  {
+  my ($self,$fnt) = @_;
+
+  require Games::OpenGL::Font::2D;
+  # read in config
+  my $cfg = Config::Simple->new();
+  # read() can fail:
+  my $hash = { file => $fnt };
+  if ($cfg->read( $fnt ))
+    {
+    $cfg = $cfg->vars();			# as hash
+    foreach my $key (keys %$cfg)
+      {
+      # clean the config vars from font.
+      my $k = lc($key); $k =~ s/^\w+\.//;
+      $hash->{$k} = $cfg->{$key};
+      }
+    }
+  my $font = Games::OpenGL::Font::2D->new( $hash ); 
+  my $app = $self->{_app};
+  $font->screen_width($app->{width});
+  $font->screen_height($app->{height}); 
+  push @{$app->{fonts}}, $font;
+  $font;
   }
 
 sub _init
@@ -79,22 +147,67 @@ sub _init
   $self->{_app} = {};
   my $app = $self->{_app};
 
+  $app->{event_handler} = {};			# none yet
+
   $app->{options} = {};
   # if we have a config file, read it in, overwriting specified stuff
   my $cfg = Config::Simple->new();
 
+  my $opt = $app->{options};
   # read() can fail:
   if ($cfg->read( $args->{config} || 'config/client.cfg'))
     {
     # The read in config values will look like "default.FullScreen", so
-    # normalize them:
+    # normalize them and parse them
     my $hash = $cfg->vars();
-    foreach my $k (keys %$hash)
+    # sort makes App. appear before Input. so that debug is enabled before
+    # binding the keys
+    $opt->{debug} = 0;			# hard default to be sure
+    $opt->{bindings} = {};
+    my $watch = {};
+    foreach my $k (sort keys %$hash)
       {
       my $key = lc($k);
-      $key =~ s/^\w+\.//;
-      $app->{options}->{$key} = $hash->{$k};
+      # section [App] or nothing
+      if ($key =~ /^(app|default)\./)
+        {
+        $key =~ s/^\w+\.//;
+	print "setting $key to $hash->{$k}\n" if $opt->{debug} > 1;
+        $opt->{$key} = $hash->{$k};
+        }
+      # section [Input]
+      # looks like "bind_event_0000 = 'a' or bind_event_quit = q
+      elsif ($key =~ /^input\.bind_/)
+        {
+        $key =~ s/^input\.bind_event_//;
+        my $char = $hash->{$k};
+        if ($key =~ /^(fullscreen|quit|console|screenshot|pause|freeze)$/)
+	  {
+          $watch->{$key} = $char;
+	  }
+	else
+	  {
+          my ($type,$kind) = char2type_kind($char);
+	  print "binding event $key to $hash->{$k} ($type, $kind)\n"
+            if $opt->{debug} != 0;
+          $opt->{bindings}->{$type}->{$kind} = $key;
+	  }
+        # so that we can look it up later
+        $opt->{bound_to}->{$key} = $char;
+        }
+      elsif ($key =~ /^console\./)
+        {
+        # console config variables
+        $key =~ s/^console\.//;
+        $opt->{console}->{$key} = $hash->{$k};
+        }
+      else
+        {
+        $key =~ s/^(\w+)(\.)/$1_/;	# font.foo => font_foo
+        $opt->{$key} = $hash->{$k};
+        }
       }
+    $self->watch_event( $watch ) if scalar keys %$watch != 0;
     }
   else
     {
@@ -104,7 +217,6 @@ sub _init
     }
 
   # override config values with given options to new() 
-  my $opt = $app->{options};
   foreach my $key (keys %$args)
     {
     $opt->{lc($key)} = $args->{$key};
@@ -126,20 +238,33 @@ sub _init
     max_fps => 60,
     time_warp => 1,
     useopengl => 0,
-    name => 'SDL::App::FPS',
+    useconsole => 0,
+    font_console => 'data/console.fnt',
+    showfps => 0,
+    font_fps => 'data/fps.fnt',
+    title => 'SDL::App::FPS',
+    debug => 0,
+    'console.background_color' => [0.2,0.4,0.9],
+    'console.background_alpha' => 0.9,
+    'console.text_color' => [0.8,0.8,1],
+    'console.text_alpha' => 1,
     };
   foreach my $key (qw/
-     useopengl width height depth fullscreen
-     max_fps time_warp resizeable name
+     useopengl width height depth fullscreen debug font_console
+     max_fps time_warp resizeable title showfps useconsole font_fps
     /) 
     {
+    if ($key =~ /(.+)\./)
+      {
+      $opt = $opt->{$1}; $key =~ s/.+\.//;
+      }
     $opt->{$key} = $def->{$key} 
       unless exists $opt->{$key} && defined $opt->{$key};
     }
  
   # normalize flags 
   foreach my $key (qw/
-     useopengl fullscreen resizeable
+     useopengl fullscreen resizeable useconsole debug
     /)
     {
     $opt->{$key} = 0 unless defined $opt->{$key};	# auto-vivify
@@ -150,8 +275,8 @@ sub _init
 
   foreach my $key (keys %$opt)
     {
-    next if $key eq 'config';
-    warn ("Unknown key $key in options") unless exists $def->{$key};
+    next if $key =~ /^(bindings|bound_to|console|config)$/;
+    warn ("Unknown key '$key' in options") unless exists $def->{$key};
     }
 
   $app->{in_fullscreen} = 0;			# start windowed
@@ -177,7 +302,6 @@ sub _init
   $app->{ramp_warp_time} = 0;			# disable ramping
   
   $app->{timers} = {};				# none yet
-  $app->{event_handler} = {};			# none yet
 
   $app->{next_timer_check} = 0;			# disable (always check)
   $app->{quit} = 0;				# no quit yet
@@ -196,7 +320,7 @@ sub _parse_command_line
   my $cmd = {}; my $input = {};
   # override options with command line arguments
   foreach my $key (qw/
-    fullscreen resizeable useopengl
+    fullscreen resizeable useopengl useconsole showfps
     /)
     {
     $input->{"$key!"} = \$cmd->{$key};
@@ -223,14 +347,33 @@ sub _parse_command_line
 sub option
   {
   # get/set a specific option as it was originally set 
-  my $self = shift;
-  my $key = shift;
+  my ($self,$key) = @_;
 
   my $app = $self->{_app};
   my $opt = $app->{options};
-  if (@_ > 0)
+  my $org_key = $key;
+  my $namespace = '';
+
+  if ($key =~ /(.+)\./)
     {
-    $opt->{$key} = shift;
+    $namespace = $1;
+    if (exists $opt->{$namespace} && ref($opt->{$namespace}) eq 'HASH') 
+      {
+      $opt = $opt->{$namespace}; $key =~ s/.+\.//;
+      }
+    else
+      {
+      return \"Error: Unknown option name space '$namespace'";
+      }
+    }
+
+  if (!exists $opt->{$key})
+    {
+    return \"Error: Option '$org_key' does not exist";
+    }
+
+  if (@_ > 2)
+    {
     if ($key eq 'max_fps')
       {
       $app->{min_time} = 0;
@@ -238,8 +381,18 @@ sub option
       }
     if ($key eq 'fullscreen')
       {
-      $app->{app}->fullscreen();
+      $app->{app}->fullscreen($opt->{$key}); return $opt->{fullscreen};
       }
+    if ($key =~ /useopengl/)
+      {
+      return \"Error: Attempt to modify read-only value '$key'";
+      }
+    my $val = $_[2]; $val = [ split /\s*,\s*/, $val ] if $val =~ /,/;
+    if ($namespace ne '')
+      {
+      $app->{$namespace}->$key($val);
+      }
+    $opt->{$key} = $val;
     }
   return undef unless exists $opt->{$key};
   $opt->{$key};
@@ -266,10 +419,24 @@ sub _resized
   my ($self,$handler,$event) = @_;
 
   my $app = $self->{_app};
-  $app->{width} = SDL::ResizeEventW($event->{-event});
-  $app->{height} = SDL::ResizeEventH($event->{-event});
+  my $opt = $app->{options};
+  $app->{width} = SDL::ResizeEventW($event->{-event}) || 16; 
+  $app->{height} = SDL::ResizeEventH($event->{-event}) || 16;
 
   $app->{app}->resize($app->{width},$app->{height});
+
+  # register new height/widht with all our 2D fonts 
+  foreach my $font (@{$app->{fonts}})
+    {
+    $font->screen_width($app->{width});
+    $font->screen_height($app->{height});
+    }
+  if ($opt->{useconsole})
+    {
+    $app->{console}->screen_width($app->{width});
+    $app->{console}->screen_height($app->{height});
+    }
+
   $self->resize_handler();
   }
 
@@ -337,12 +504,12 @@ sub _create_window
 
   my $app = $self->{_app};
   my @opt = ();
-  foreach my $k (qw/width height depth resizeable/)
+  foreach my $k (qw/width height depth resizeable title/)
     {
     push @opt, "-$k", $app->{options}->{$k};
     }
   push @opt, "-gl", '1' if $app->{options}->{useopengl} != 0;
-    
+
   $app->{app} = SDL::App->new( @opt );
   $app->{app}->fullscreen() if $app->{options}->{fullscreen};
   # cache resolution and bits_per_pixel
@@ -591,8 +758,121 @@ sub _next_frame
   $self->draw_frame(
    $app->{current_time},$app->{lastframe_time},$app->{current_fps});
 
+  my $opt = $app->{options};
+  $app->{console}->render($app->{current_time}) if $opt->{useconsole};
+  $self->_show_fps() if $opt->{showfps};
+
+  SDL::GLSwapBuffers() if $opt->{useopengl};
+
   $app->{lastframe_time} = $app->{current_time};
   }  
+
+sub _console_event
+  {
+  my ($self,$type,$k,$mod,$event) = @_;
+
+  my $app = $self->{_app};
+  my $opt = $app->{options};
+
+  # if user-defined bindings exists
+  if (exists $opt->{bindings}->{$type}->{$k})
+    {
+    # ignore this event, otherwise user couldn't close console
+    return 0 if $opt->{bindings}->{$type}->{$k} eq 'console';
+    }
+  # console ignores anything except key_down
+  return 0 if $type != SDL_KEYDOWN;
+ 
+  my $rc = 0;
+  if (($k >= 32) && ($k < 255))
+    {
+    # key_unicode() gives us '9' and ']' (RALT+9), whereas key_sym() would not
+    # take key modifiers into account
+    $event->set_unicode(1);
+    $app->{console}->add_input(chr($event->key_unicode));
+    $rc = 1;
+    }
+  elsif ($k == SDLK_UP && $mod == 0)
+    {
+    $app->{console}->last_input();
+    $rc = 1;
+    }
+  elsif ($k == SDLK_DOWN && $mod == 0)
+    {
+    $app->{console}->last_input(-1);
+    $rc = 1;
+    }
+  elsif ($k == SDLK_UP && $mod == KMOD_SHIFT)
+    {
+    $app->{console}->scroll(-1);
+    $rc = 1;
+    }
+  elsif ($k == SDLK_DOWN && $mod == KMOD_SHIFT)
+    {
+    $app->{console}->scroll(1);
+    $rc = 1;
+    }
+  elsif ($k == SDLK_RETURN || $k == SDLK_KP_ENTER)
+    {
+    my $input = $app->{console}->input();
+    return 1 if $input eq '';
+
+    # append one line, reset input buffer
+    $app->{console}->message( $self->_console_command($input) );
+    $app->{console}->input('');
+    $rc = 1;
+    }
+  elsif ($k == SDLK_BACKSPACE)
+    {
+    # erase last char
+    $app->{console}->backspace();
+    $rc = 1;
+    }
+  elsif ($k == SDLK_TAB)
+    {
+    # autocomplete
+    $app->{console}->autocomplete();
+    $rc = 1;
+    }
+
+  # signal that console handled the event (or not)
+  $rc;
+  }
+
+sub _console_command
+  {
+  my ($self,$input) = @_;
+
+  my $opt = $self->{_app}->{options};
+  my ($name,$val) = split (/\s*=\s*/, $input );
+
+  # commands
+  if ($name =~ /^(screenshot|quit)$/)
+    {
+    no strict 'refs';
+    &{$name}($self);
+    return "Saved as '" . $self->{_app}->{screenshot_name} . ".bmp'"
+     if $name eq 'screenshot';
+    return;
+    }
+  # options
+  my $rc;
+  if (defined $val)
+    {
+    $rc = $self->option($name,$val);
+    return $$rc if ref($rc) eq 'SCALAR'; 
+    $rc = join(',',@$rc) if ref($rc) eq 'ARRAY';
+    $rc = "$name = $rc";
+    }
+  else
+    {
+    $rc = $self->option($name);
+    return $$rc if ref($rc) eq 'SCALAR'; 
+    $rc = join(',',@$rc) if ref($rc) eq 'ARRAY';
+    $rc = "$name: $rc";
+    }
+
+  }
 
 sub _handle_events
   {
@@ -603,18 +883,37 @@ sub _handle_events
 
   my $done = 0;
   my $app = $self->{_app};
+  my $opt = $app->{options};
   my $event = $app->{event};
   $app->{handled_events} = 0;			# count handled ones
   # inner while to handle all events, not only one per frame
-  #print $event->set_key_repeat(250,100);
+  $event->set_key_repeat(250,20);		# TODO seems not to work?
   while ($event->poll())			# got one event?
     {
     $app->{handled_events}++;			# count 'em
     return 1 if $event->type() == SDL_QUIT;	# check this first
 
     my $type = $event->type();
-    my $key_sym = $event->key_sym();
+    my $k = $event->key_sym();
 
+    if ($type != SDL_KEYDOWN && $type != SDL_KEYUP)
+      {
+      # SDL uses 1,2,3,4,5; we use 1,2,4,8,16 to beeing able to watch more than
+      # one button at the same time
+      $k = 2 ** ($event->button() - 1);
+      }
+    
+    # if console is open, catch events for it first
+    next if $app->{console_open} &&
+     $self->_console_event($type,$k,$event->key_mod(),$event);
+
+    # if user-defined bindings exists
+    if (exists $opt->{bindings}->{$type}->{$k})
+      {
+      $k = $opt->{bindings}->{$type}->{$k};	# name like 'event_slow_down'
+      $type = FPS_EVENT;
+      }
+    
     # Check event with all registered active event handlers, the foreach loop
     # uses (internaly) a copy of keys, so that deleting/adding keys
     # will not change the list of checked event handler while we loop over
@@ -622,12 +921,13 @@ sub _handle_events
     # should not checked this time, or deactivates some, which *should* be
     # checked this time. (e.g. (de)activation counts only in the next frame)
 
-    # check only active ones, but use the global hash to access them
+    # check only active ones of the right type
     my $handler = $app->{event_handler}->{$type};
+    # but use the global hash to access them
     my $handlers = $app->{event_handlers};
     foreach my $h (keys %$handler)
       {
-      $handlers->{$h}->check($event,$type,$key_sym);
+      $handlers->{$h}->check($event,$type,$k);
       }
 
     next if $type != SDL_MOUSEBUTTONDOWN && $type != SDL_MOUSEBUTTONUP &&
@@ -646,7 +946,7 @@ sub _handle_events
       }
 
     }
-  $done += $app->{quit};	# terminate if an event handler/button set it
+  $done + $app->{quit};		# terminate if an event handler/button set it
   }
 
 sub quit
@@ -964,6 +1264,19 @@ sub _rebound_event_handler
   $app->{event_handler}->{$handler->{type}}->{$id} = $handler;
   }
 
+sub event_bound_to
+  {
+  # return the name of the key/button the event handler is bound to, usefull
+  # for handlers of type=FPS_EVENT, kind='name_here'
+  my ($self,$event) = @_;
+
+  my $opt = $self->{_app}->{options}->{bound_to};
+  return unless exists $opt->{$event};
+  $opt->{$event};
+  }
+
+##############################################################################
+
 sub _deactivated_thing
   {
   # When a thing (timer, event handler, button etc) is deactivated, it
@@ -1096,33 +1409,22 @@ sub watch_event
     $args = { @_ };			# make hash ref from array
     }
 
+  my $opt = $self->{_app}->{options};
   foreach my $name (keys %{$args})
     {
-    if ($name !~ /^(pause|freeze|quit|fullscreen|screenshot)$/)
+    if ($name !~ /^(pause|freeze|quit|fullscreen|console|screenshot)$/)
       {
       require Carp; Carp::croak ("Cannot watch unknown event $name");
       }
-    my $type = SDL_KEYDOWN;
-    my $key = $args->{$name};
-    if ($key =~ /^[LMR]MB$/)
-      {
-      $type = SDL_MOUSEBUTTONDOWN;
-      if ($key eq 'LMB')
-	{
-        $key = BUTTON_MOUSE_MIDDLE;
-        }
-      elsif ($key eq 'RMB')
-	{
-        $key = BUTTON_MOUSE_RIGHT;
-        }
-      elsif ($key eq 'MMB')
-	{
-        $key = BUTTON_MOUSE_MIDDLE;
-        }
-      }
+    my ($type,$key) = char2type_kind($args->{$name});
+    print "binding event $name to $args->{$name} ($type, $key)\n"
+      if $opt->{debug} != 0;
+    $opt->{bindings}->{$type}->{$key} = $name;
+    $self->{_app}->{bound_to}->{$name} = $args->{name};
+    my $sub;
     if ($name eq 'freeze')
       {
-      $self->add_event_handler ($type, $key,
+      $sub = 
        sub {
          my $self = shift;
          if ($self->time_is_frozen())
@@ -1133,41 +1435,54 @@ sub watch_event
            {
          $self->freeze_time();
          }
-       });
+       };
+      }
+    elsif ($name eq 'console')
+      {
+      $sub = sub { 
+        my $app = $_[0]->{_app};
+	my $opt = $app->{options};
+        if ($opt->{useconsole})
+	  {
+	  # if we have a console, toggle it
+          $app->{console}->toggle($app->{current_time});
+	  $app->{console_open} = 1 - $app->{console_open};
+	  }
+        };
       }
     elsif ($name eq 'fullscreen')
       {
-      $self->add_event_handler ($type, $key, sub { $_[0]->fullscreen(); } );
+      $sub = sub { $_[0]->fullscreen(); };
       }
     elsif ($name eq 'screenshot')
       {
-      $self->add_event_handler ($type, $key, sub { $_[0]->screenshot(); } );
+      $sub = sub { $_[0]->screenshot(); };
       }
     elsif ($name eq 'quit')
       {
-      $self->add_event_handler ($type, $key, \&quit);
+      $sub = \&quit;
       }
     elsif ($name eq 'pause')
       {
-      $self->add_event_handler ($type, $key, 
+      $sub = 
        sub { 
-        my $self = shift; my ($event,$nkey);
+        my $self = shift; my $nkey;
+        my $app = $self->{_app};
         do {
-          $event = $self->pause($type);
+          $self->pause($type);
           if ($type == SDL_KEYDOWN)
             {
-            $nkey = $event->key_sym();
+            $nkey = $app->{event}->key_sym();
             }
           else
 	    {
-            $nkey = $event->button();
+            $nkey = $app->{event}->button();
             }
           } while ($nkey != $key);
-        }
-       );
+        };
       }
+    $self->add_event_handler (FPS_EVENT, $name, $sub );
     }
-
   }
 
 sub screenshot
@@ -1184,15 +1499,56 @@ sub screenshot
     {
     # find first free name
     $name = $app->{screenshot_name} || 'screenshot0000';
-    $name++ while (-e File::Spec->catfile($path,$name));
+    $name++ while (-e File::Spec->catfile($path,$name.'.bmp'));
     $app->{screenshot_name} = $name; $app->{screenshot_name}++;
     }
   $name .= '.bmp' unless $name =~ /\.bmp$/;
-  print ref($app->{app})," $path $name => ",
-    File::Spec->catfile($path,$name),"\n";
+  my $filename = File::Spec->catfile($path,$name);
+  
+  if ($app->{options}->{useopengl})
+    {
+    my $w = $app->{width};
+    my $h = $app->{height};
+    my $data = SDL::OpenGL::glReadPixels (0,0,$w,$h,
+      SDL::OpenGL::GL_BGR(),
+      SDL::OpenGL::GL_UNSIGNED_BYTE());
+    SDL::OpenGL::SaveBMP( $filename, $w, $h, 24, $data);
+    }
+  else
+    {
+    SDL::SaveBMP( $app->{app}, $filename );
+    }
+  }
 
-#  SDL::SaveBMP( $app->{app}, File::Spec->catfile($path,$name) );
-  $app->{app}->save_bmp( File::Spec->catfile($path,$name) );
+sub _show_fps
+  {
+  my $self = shift;
+
+  my $app = $self->{_app};
+  my $opt = $app->{options};
+  
+  return unless ($opt->{useopengl} && $opt->{showfps});
+
+  $app->{fps_font}->pre_output();
+  my $string = int($app->{current_fps}). " fps";
+  my $y = 3;
+  my $x = 5;
+  if ($opt->{showfps} == 1)
+    {
+    $y = $app->{height} - $app->{fps_font}->char_height() - 3;
+    }
+  elsif ($opt->{showfps} == 3)
+    {
+    $y = $app->{height} - $app->{fps_font}->char_height() - 3;
+    $x = $app->{width} - 3;
+    }
+  elsif ($opt->{showfps} == 4)
+    {
+    $x = $app->{width} - 3; $y = 3;
+    }
+  $app->{fps_font}->output ($x,$y,$string);
+
+  $app->{fps_font}->post_output();
   }
 
 1;
@@ -1237,6 +1593,8 @@ Subclass SDL::App::FPS and override some methods:
 	  $self->watch_event( fullscreen => SDLK_f, pause => SDLK_p,
 			      quit => SDLK_q,
 		 	    );
+	  # You can also specify the key/mousebutton bindings for these events
+	  # in the config file like "bind_event_fullscreen = f"
 	  }
 
 Then write a small script using SDL::App::MyFPS like this:
@@ -1261,6 +1619,8 @@ Three symbols on request, namely:
         BUTTON_MOUSE_LEFT
         BUTTON_MOUSE_RIGHT
         BUTTON_MOUSE_MIDDLE
+        BUTTON_MOUSE_WHEEL_DOWN
+        BUTTON_MOUSE_WHEEL_UP
 
 =head1 DESCRIPTION
 
@@ -1529,7 +1889,18 @@ new() gets a hash ref with options, the following options are supported:
 			'config/client.cfg'.
 	time_warp	Defauls to 1.0 - initial time warp value.
 	fullscreen	0 = windowed, 1 - fullscreen
-	name		Name of the app, will be the window title
+	title		Name of the app, will be the window title
+	useconsole	enable a console (which can be shown/hidden)
+	showfps		print fps (0 - disable, 1 upper-left, 2 lower-left,
+			3 lower-right, 4 upper-right corner)
+	font_fps	name of the .fnt file containing the config for the
+			font for the FPS
+	font_console	name of the .fnt file containing the config for the
+			font for the Console
+	debug		0: disable, 1 (or higher for more): print debug info
+
+C<useconsole> and C<showfps> currently only work in conjunction with
+C<useopengl>.
 
 new() also parses the command line options via Getopt::long, meaning that
 
@@ -1606,9 +1977,16 @@ handlers to some default events. The following are supported:
 				and events handled, althouhg no timer will
 				expire (since the time does not "flow"). The
 				same key again lets the time flow again.
+	screenshot		Take a screenshot of the current fram and store
+				it as BMP
+
 
 Instead of SDLK_foo, you can also pass for key one of the B<strings> 'LMB',
-'RMB' or 'MMB' meaning the left, right and middle mouse button.
+'RMB' or 'MMB' meaning the left, right and middle mouse button. Also possible
+are the strings 'MWD' and 'MWU', meaning mouse wheel down and up, respectively. 
+
+Furthermore possible are strings like 'ENTER', which will be translated to
+SDLK_ENTER.
 
 =item quit()
 
@@ -1735,9 +2113,33 @@ The created handler is added to the application.
 
 See L<SDL::App::FPS::EventHandler::new()> for details.
 
+One clever and usefull thing is to define the key bindings in the config file
+under the section C<[input]> like this:
+
+	bind_event_some_name = f
+	bind_event_some_other = SPACE
+	bind_event_more = RMB
+
+And then do this:
+
+        my $handler = SDL::App::FPS::EventHandler->new(
+                FPS_EVENT,
+                'some_name',
+                $callback
+        );
+
+This means rebinding the event to a different key needs no change in your code.
+
 =item del_event_handler
 
 Delete an event handler from the application. 
+
+=item event_bound_to
+
+	$name = $app->event_bound_to('some_event');
+
+Rreturn the name of the key/button the event handler is bound to, usefull
+for handlers of type C<FPS_EVENT>. See L<add_event_handler()>.
 
 =item app()
 
@@ -1962,6 +2364,17 @@ automatically by the thing itself.
 When a thing (timer, event handler, button etc) is deactivated, it
 notifies the app by calling this routine with itself as argument. Done
 automatically by the thing itself.
+
+=back
+
+=head1 BUGS
+
+=over 2
+
+=item *
+
+C<useconsole> and C<showfps> currently only work in conjunction with
+C<useopengl>.
 
 =back
 

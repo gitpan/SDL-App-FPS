@@ -81,19 +81,27 @@ $handler->activate();
 $handler->check($dummyevent,$dummyevent->type(),$dummyevent->key_sym());
 is ($space_pressed, 1, 'callback was called');		# bug in v0.07
 
+##############################################################################
+# check mouse button events and combinations
+
+# watch for left or right, and is triggered when left is pressed
 my $pressed = 0;
 $dummyevent = DummyEventMouse->new( BUTTON_MOUSE_LEFT );
 $handler = SDL::App::FPS::EventHandler->new
   ('main', SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_LEFT + BUTTON_MOUSE_RIGHT,
    sub { $pressed++; }, );
-$handler->check($dummyevent,$dummyevent->type(),$dummyevent->key_sym());
+
+$handler->check($dummyevent,$dummyevent->type,$dummyevent->button);
 is ($pressed, 1, 'callback was called');
 $dummyevent = DummyEventMouse->new( BUTTON_MOUSE_RIGHT );
-$handler->check($dummyevent,$dummyevent->type(),$dummyevent->key_sym());
+
+$handler->check($dummyevent,$dummyevent->type,$dummyevent->button);
 is ($pressed, 2, 'callback was called again');
   
 is ($handler->require_all_modifiers(), 0, 'require all');
 is ($handler->ignore_additional_modifiers(), 1, 'ignore additional');
+
+##############################################################################
 
 $handler = SDL::App::FPS::EventHandler->new
   ('main', SDL_KEYDOWN, [ SDLK_a, SDLK_LSHIFT ],

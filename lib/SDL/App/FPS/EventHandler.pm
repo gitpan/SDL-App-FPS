@@ -12,11 +12,25 @@ use SDL::App::FPS::Thingy;
 use vars qw/@ISA $VERSION @EXPORT_OK/;
 @ISA = qw/SDL::App::FPS::Thingy Exporter/;
 
-@EXPORT_OK = qw/char2key/;
+@EXPORT_OK = qw/char2key char2type_kind FPS_EVENT/;
 
 use SDL::Event;
 
 $VERSION = '0.04';
+
+##############################################################################
+# constants
+
+sub FPS_EVENT () { -1; }
+
+sub BUTTON_MOUSE_LEFT ()        { 1; }
+sub BUTTON_MOUSE_RIGHT ()       { 4; }
+sub BUTTON_MOUSE_MIDDLE ()      { 2; }
+sub BUTTON_MOUSE_WHEEL_DOWN ()  { 8; }
+sub BUTTON_MOUSE_WHEEL_UP ()    { 16; }
+
+##############################################################################
+# methods
 
 sub _init
   {
@@ -105,17 +119,14 @@ sub check
 
   return unless $type == $self->{type};
 
-  if ($type == SDL_KEYDOWN || $type == SDL_KEYUP)
+  if ($type == FPS_EVENT || $type == SDL_KEYDOWN || $type == SDL_KEYUP)
     {
-    return unless $key == $self->{kind};
+    return unless $key eq $self->{kind};
     }
   elsif ($type == SDL_MOUSEBUTTONUP || $type == SDL_MOUSEBUTTONDOWN)
     {
-    my $kind = $event->button();
-    # SDL uses 1,2,3, we use 1,2,4 to add them together for Buttons
-    $kind = 4 if $kind == 3;
-    # this enables to watch for more than one button with one event:
-    return unless ($self->{kind} & $kind) != 0;
+    # watch for more than one button with one event:
+    return if ($self->{kind} & $key) == 0;
     }
 
   my $required = 0;
@@ -240,15 +251,95 @@ my $char2key = {
   7 => SDLK_7,
   8 => SDLK_8,
   9 => SDLK_9,
+
+  '!' => [ SDLK_1, KMOD_SHIFT ],
+  '"' => [ SDLK_2, KMOD_SHIFT ],
+  '§' => [ SDLK_3, KMOD_SHIFT ],
+  '$' => [ SDLK_4, KMOD_SHIFT ],
+  '%' => [ SDLK_5, KMOD_SHIFT ],
+  '&' => [ SDLK_6, KMOD_SHIFT ],
+  '/' => [ SDLK_7, KMOD_SHIFT ],
+  '(' => [ SDLK_7, KMOD_SHIFT ],
+  ')' => [ SDLK_8, KMOD_SHIFT ],
+  '=' => [ SDLK_0, KMOD_SHIFT ],
+  '_' => [ SDLK_MINUS, KMOD_SHIFT ],
+  ';' => [ SDLK_COMMA, KMOD_SHIFT ],
+  ':' => [ SDLK_PERIOD, KMOD_SHIFT ],
+  '>' => [ SDLK_LESS, KMOD_SHIFT ],
+  '*' => [ SDLK_PLUS, KMOD_SHIFT ],
+  '@' => [ SDLK_q, KMOD_RALT ],
+
   };
+
+# if we define these in $char2key, we could skip the costly eval. OTOH, the
+# eval will be done only once, while $char2key wastes memory...
+
+#        SDLK_END SDLK_EQUALS SDLK_ESCAPE SDLK_EURO SDLK_EXCLAIM SDLK_F1
+#        SDLK_F10 SDLK_F11 SDLK_F12 SDLK_F13 SDLK_F14 SDLK_F15 SDLK_F2 SDLK_F3
+#        SDLK_F4 SDLK_F5 SDLK_F6 SDLK_F7 SDLK_F8 SDLK_F9 SDLK_GREATER
+#        SDLK_HASH SDLK_HELP SDLK_HOME SDLK_INSERT SDLK_KP0 SDLK_KP1 SDLK_KP2
+#        SDLK_KP3 SDLK_KP4 SDLK_KP5 SDLK_KP6 SDLK_KP7 SDLK_KP8 SDLK_KP9
+#        SDLK_KP_DIVIDE SDLK_KP_ENTER SDLK_KP_EQUALS SDLK_KP_MINUS
+##        SDLK_KP_MULTIPLY SDLK_KP_PERIOD SDLK_KP_PLUS SDLK_LALT SDLK_LCTRL
+#        SDLK_LEFT SDLK_LEFTBRACKET SDLK_LEFTPAREN SDLK_LESS SDLK_LMETA
+#        SDLK_LSHIFT SDLK_LSUPER SDLK_MENU SDLK_MINUS SDLK_MODE SDLK_NUMLOCK
+#        SDLK_PAGEDOWN SDLK_PAGEUP SDLK_PAUSE SDLK_PERIOD SDLK_PLUS SDLK_POWER
+#        SDLK_PRINT SDLK_QUESTION SDLK_QUOTE SDLK_QUOTEDBL SDLK_RALT
+##        SDLK_RCTRL SDLK_RETURN SDLK_RIGHT SDLK_RIGHTBRACKET SDLK_RIGHTPAREN
+#        SDLK_RMETA SDLK_RSHIFT SDLK_RSUPER SDLK_SCROLLOCK SDLK_SEMICOLON
+#        SDLK_SLASH SDLK_SPACE SDLK_SYSREQ SDLK_TAB SDLK_UNDERSCORE SDLK_UP
 
 sub char2key
   {
   # convert a character like 'a' to a key event like SDLK_a
   my $char = shift;
 
-  return $char2key->{$char};
+  return $char2key->{$char} if exists $char2key->{$char};
+  if ($char =~ /^[A-Z]A-Z+/)
+    {
+    return eval "SDLK_$char()";
+    }
+  return;  
   }
+
+sub char2type_kind
+  {
+  # convert a character like 'a' to a key event like SDLK_a
+  # and a string like "PRINT" to SDL_KEYDOWN, SDLK_PRINT
+  my $key = shift;
+
+  my $type = SDL_KEYDOWN;
+  if ($key =~ /^([LMR]MB|MWD|MWU)$/)
+    {
+    $type = SDL_MOUSEBUTTONDOWN;
+    if ($key eq 'LMB')
+      {
+      $key = BUTTON_MOUSE_LEFT;
+      }
+    elsif ($key eq 'RMB')
+      {
+      $key = BUTTON_MOUSE_RIGHT;
+      }
+    elsif ($key eq 'MMB')
+      {
+      $key = BUTTON_MOUSE_MIDDLE;
+      }
+    elsif ($key eq 'MWU')
+      {
+      $key = BUTTON_MOUSE_WHEEL_UP;
+      }
+    elsif ($key eq 'MWD')
+      {
+      $key = BUTTON_MOUSE_WHEEL_DOWN;
+      }
+    return ($type, $key);
+    }
+
+  return ($type,$char2key->{$key}) if exists $char2key->{$key};
+  my $char = eval "SDLK_$key()"; 
+  return ($type, $char);
+  }
+
 1;
 
 __END__
@@ -451,6 +542,17 @@ Return the handler's unique id.
 	$sdl_key_a = char2key('a');
 
 Converts a character like C<'a'> to a SDL key like C<SDLK_a>.
+
+=item char2type_kind()
+
+	($type,$sdl_key) = char2type_kind($char);
+	($type,$sdl_key) = char2type_kind('a');
+	($type,$sdl_key) = char2type_kind('PRINT');
+	($type,$sdl_key) = char2type_kind('ENTER');
+	($type,$sdl_key) = char2type_kind('LMB');	# left mouse button
+
+Converts a character like C<'a'> to a SDL key like C<SDLK_a>, and also returns
+the type (SDL_KEYDOWN or SDL_MOUSEBUTTONDOWN).
 
 =back
 

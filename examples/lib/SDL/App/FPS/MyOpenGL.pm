@@ -10,11 +10,7 @@ use strict;
 
 use SDL::OpenGL;
 use SDL::OpenGL::Cube;
-use SDL::App::FPS qw/
-  BUTTON_MOUSE_LEFT
-  BUTTON_MOUSE_MIDDLE
-  BUTTON_MOUSE_RIGHT
-  /;
+use SDL::App::FPS qw/ FPS_EVENT /;
 use SDL::Event;
 
 use vars qw/@ISA/;
@@ -26,8 +22,11 @@ sub _gl_draw_cube
   {
   my $self = shift;
 
-  glClear( GL_DEPTH_BUFFER_BIT() | GL_COLOR_BUFFER_BIT());
+  glDepthMask(GL_TRUE);			# enable writing to depth buffer
 
+  glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
+  glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
 
   glTranslate(0,0,-6.0);
@@ -39,7 +38,8 @@ sub _gl_draw_cube
 
   glRotate($angle,1,1,0);
   glRotate($other,0,1,1);
-
+ 
+  glDisable(GL_TEXTURE_2D);
   glColor(1,1,1);
   $self->{cube}->draw();
   }
@@ -50,7 +50,7 @@ sub _gl_init_view
 
   glViewport(0,0,$self->width(),$self->height());
 
-  glMatrixMode(GL_PROJECTION());
+  glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
 
   if ( @_ )
@@ -62,7 +62,7 @@ sub _gl_init_view
     glFrustum(-0.1,0.1,-0.075,0.075,0.3,100.0);
     }
 
-  glMatrixMode(GL_MODELVIEW());
+  glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
   
   glEnable(GL_CULL_FACE);
@@ -81,7 +81,6 @@ sub draw_frame
        
   $self->_gl_draw_cube();
 
-  SDL::GLSwapBuffers();		# without this, you won't see anything!
   }
 
 sub resize_handler
@@ -105,30 +104,25 @@ sub post_init_handler
 
   $self->{cube}->color(@colors);
 
-  # set up some event handlers
-  $self->watch_event ( 
-    quit => SDLK_q, fullscreen => SDLK_f, freeze => SDLK_SPACE,
-    screenshot => SDLK_F12,
-   );
-
-  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_LEFT,
+  $self->add_event_handler (FPS_EVENT, 'speed_up',
    sub {
      my $self = shift;
      return if $self->time_is_ramping() || $self->time_is_frozen();
      $self->ramp_time_warp('2',1500);           # ramp up
      });
-  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_RIGHT,
+  $self->add_event_handler (FPS_EVENT, 'slow_down',
    sub {
      my $self = shift;
      return if $self->time_is_ramping() || $self->time_is_frozen();
      $self->ramp_time_warp('0.3',1500);         # ramp down
      });
-  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_MIDDLE,
+  $self->add_event_handler (FPS_EVENT, 'normal_speed',
    sub {
      my $self = shift;
      return if $self->time_is_ramping() || $self->time_is_frozen();
      $self->ramp_time_warp('1',1500);           # ramp to normal
-     });
+    });
+
   }
 
 1;

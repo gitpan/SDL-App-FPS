@@ -31,7 +31,6 @@ sub new
   $self->{group} = undef;
   
   $self->_init(@_);
-  $self;
   }
 
 sub _init
@@ -52,14 +51,20 @@ sub activate
   {
   my ($self) = shift;
 
+  return 1 if $self->{active} == 1;			 # already active
   $self->{active} = 1;
+  $self->{app}->_activated_thing($self);
+  1;
   }
 
 sub deactivate
   {
   my ($self) = shift;
 
+  return 0 if $self->{active} == 0;			 # already inactive
   $self->{active} = 0;
+  $self->{app}->_deactivated_thing($self);
+  0;
   }
 
 sub is_active

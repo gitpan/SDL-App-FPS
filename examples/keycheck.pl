@@ -15,7 +15,7 @@ BEGIN
 
 use SDL::App::FPS::MyKeyCheck;
 
-my $options = { width => 640, height => 480, max_fps => 15};
+my $options = { width => 640, height => 480, max_fps => 10};
 
 print "KeyCheck demo v0.01 (C) 2003 by Tels <http://Bloodgate.com/>\n\n";
 print "Press LEFTCTRL-LEFTSHIFT-q for quit\n\n";

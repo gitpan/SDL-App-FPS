@@ -15,8 +15,30 @@ use SDL::App::FPS qw/
 use SDL::Event;
 use SDL::App::FPS::Color qw/BLACK/;
 
-use vars qw/@ISA/;
+use vars qw/@ISA $use_perl/;
 @ISA = qw/SDL::App::FPS/;
+
+sub use_perl
+  {
+  $use_perl;
+  }
+
+BEGIN
+  {
+  $use_perl = 0;
+  eval "require Math::Fractal::Mandelbrot;";
+  if (defined $Math::Fractal::Mandelbrot::VERSION)
+    {
+    if ($Math::Fractal::Mandelbrot::VERSION < 0.02)
+      {
+      warn ("Need at least Math::Fractal::Mandelbrot v0.02");
+      }
+    else
+      {
+      $use_perl = 1;
+      }
+    }
+  }
 
 ##############################################################################
 
@@ -35,7 +57,9 @@ sub _mandel_recursive
     # once we are done, we enter stage 2
     if ($self->{done} == 0)
       {
-      print "\nDoing $self->{x1} , $self->{y1} ... $self->{x2} , $self->{y2}\n";
+      print "\nDoing $self->{x1} , $self->{y1} ...\n",
+            " $self->{x2} , $self->{y2}\n";
+      print "\nMax iter = $self->{max_iter}\n";
       # calculate the upper line
       for my $x (0 .. $self->{width}-1)
         {
@@ -138,9 +162,9 @@ sub _mandel_recursive
           {
           # color it and stop dividing it
           my $c = new SDL::Color (
-             -r => $border & 0xff,
-             -g => $border & 0xff,
-             -b => (128 + $border) & 0xff);
+           -r => ($self->{color_bias_red} + $border) & 0xff,
+           -g => ($self->{color_bias_green} + $border) & 0xff,
+           -b => ($self->{color_bias_blue} + $border) & 0xff );
           $rect->x($xl+1);
           $rect->y($yl+1);
           $rect->width($w-1);
@@ -158,7 +182,8 @@ sub _mandel_recursive
         {
         for (my $y = $yl+1; $y < $yr; $y++)
           {
-          $self->_mandel_draw_point($x,$y, $self->_mandel_point($x,$y) );
+          $self->_mandel_draw_point($x,$y, 
+           $cache->[$x]->[$y] = $self->_mandel_point($x,$y) );
           }
         }
       next RECTANGLE;			# done with that
@@ -208,24 +233,44 @@ sub _mandel_recursive
   $self->{state} = 3;		# all done
   }
 
+sub _mandel_recolor
+  {
+  # redraw the screen with a different color scheme based on the cache
+  my $self = shift;
+
+  my $cache = $self->{cache};
+  for (my $x = 0; $x < $self->{width}; $x++)
+    {
+    for (my $y = 0; $y < $self->{height}; $y++)
+      {
+      my $color = $cache->[$x]->[$y] || 0;
+      next if $color == 0;		# black
+      my $c = $self->{color};
+  
+      $c->r(($self->{color_bias_red} + $color) & 0xff);	
+      $c->g(($self->{color_bias_green} + $color) & 0xff);	
+      $c->b(($self->{color_bias_blue} + $color) & 0xff);	
+
+      $self->{app}->pixel($x,$y,$c);
+      }
+    }
+
+  }
+
 sub _mandel_draw_point
   {
   my ($self,$x,$y,$color) = @_;
 
   $self->{points}++;
   return if $color == 0;		# black
-  my $c = new SDL::Color (
-    -r => $color & 0xff, -g => $color & 0xff, -b => (128 + $color) & 0xff);
 
-  # fastest
-  #my $r = $color & 0xff; my $g = $color & 0xff; my $b = (128 + $color) & 0xff;
-  #SDL::SurfaceSetPixel($self->{app}->{-surface},$x,$y,$r,$g,$b);
-   
-  # works, but slower
-  #my $r = SDL::Rect->new( -x => $x, -y => $y, -width => 1, -height => 1);
-  #$self->{app}->fill($r,$c);
+  # by reusing a SDL::Color object # we gain speed
+  my $c = $self->{color};
   
-  # works faster
+  $c->r(($self->{color_bias_red} + $color) & 0xff);	
+  $c->g(($self->{color_bias_green} + $color) & 0xff);	
+  $c->b(($self->{color_bias_blue} + $color) & 0xff);	
+
   $self->{app}->pixel($x,$y,$c);
   }
 
@@ -259,9 +304,9 @@ sub _mandel_iterative
         if ($lastcolor != $color)
 	  {
           $c = new SDL::Color (
-           -r => $color & 0xff,
-           -g => $color & 0xff,
-           -b => (128 + $color) & 0xff);
+           -r => ($self->{color_bias_red} + $color) & 0xff,	
+           -g => ($self->{color_bias_green} + $color) & 0xff,	
+           -b => ($self->{color_bias_blue} + $color) & 0xff);
           }
         $self->{app}->pixel($x,$y,$c);
         #$app->fill($r,$c);
@@ -281,6 +326,11 @@ sub _mandel_point
   # calculate the mandelbrot fractal at one point
   my ($self,$x,$y) = @_;
 
+  if ($use_perl != 0)
+    {
+    return Math::Fractal::Mandelbrot->point($x,$y);
+    }
+
   my $x1 = $self->{x1}; 
   my $x2 = $self->{x2};
   my $y1 = $self->{y1};
@@ -291,15 +341,19 @@ sub _mandel_point
   my $cb = $y1 + $y * ($y2 - $y1) / $self->{height};
   my $za = 0;
   my $zb = 0;
+  my $za2 = 0;
+  my $zb2 = 0;
 
   my $iter = 0; my ($za1,$zb1);
   my $max_iter = $self->{max_iter};
   while ($iter++ < $max_iter)
     {
-    $za1 = $za * $za - $zb * $zb + $ca;
+    $za1 = $za2 - $zb2 + $ca;
     $zb = 2 * $za * $zb + $cb;
     $za = $za1;
-    return $iter if $za * $za + $zb * $zb > 5;
+    $za2 = $za * $za;
+    $zb2 = $zb * $zb;
+    return $iter if $za2 + $zb2 > 5;
     }
   0;
   }
@@ -329,6 +383,14 @@ sub _mandel_setup
   for my $i (0..$self->{width})
     {
     $self->{cache}->[$i] = [];
+    }
+  if ($use_perl != 0)
+    {
+    Math::Fractal::Mandelbrot->set_max_iter($self->{max_iter});
+    Math::Fractal::Mandelbrot->set_bounds(
+     $self->{x1}, $self->{y1}, $self->{x2}, $self->{y2},
+     $self->{width}, $self->{height},
+     );
     }
   }
 
@@ -370,6 +432,7 @@ sub post_init_handler
   my $self = shift;
  
   $self->{black} = BLACK;
+  $self->{color} = SDL::Color->new();
 
   $SDL::DEBUG = 0;  			# disable debug, it slows us down
   $self->_mandel_setup();
@@ -377,6 +440,10 @@ sub post_init_handler
   $self->{method} = \&_mandel_recursive;
 
   $self->{app} = $self->app();
+  
+  $self->{color_bias_blue} = 128;
+  $self->{color_bias_green} = 0;
+  $self->{color_bias_red} = 0;
 
   # state 0 => start calc
   # state 1 => in calc
@@ -406,6 +473,51 @@ sub post_init_handler
        my $self = shift; $self->{method} = \&_mandel_recursive;
        $self->{sub_method} = 1;
        $self->_mandel_reset();
+       }),
+
+    $self->add_event_handler (SDL_KEYDOWN, SDLK_b,
+     sub {
+       my $self = shift;
+       $self->{color_bias_blue} = 128;
+       $self->{color_bias_green} = 0;
+       $self->{color_bias_red} = 0;
+       $self->_mandel_recolor();
+       }),
+
+    $self->add_event_handler (SDL_KEYDOWN, SDLK_r,
+     sub {
+       my $self = shift;
+       $self->{color_bias_blue} = 0;
+       $self->{color_bias_green} = 0;
+       $self->{color_bias_red} = 128;
+       $self->_mandel_recolor();
+       }),
+
+    $self->add_event_handler (SDL_KEYDOWN, SDLK_g,
+     sub {
+       my $self = shift;
+       $self->{color_bias_blue} = 0;
+       $self->{color_bias_green} = 128;
+       $self->{color_bias_red} = 0;
+       $self->_mandel_recolor();
+       }),
+
+    $self->add_event_handler (SDL_KEYDOWN, SDLK_y,
+     sub {
+       my $self = shift;
+       $self->{color_bias_blue} = 0;
+       $self->{color_bias_green} = 128;
+       $self->{color_bias_red} = 128;
+       $self->_mandel_recolor();
+       }),
+
+    $self->add_event_handler (SDL_KEYDOWN, SDLK_p,
+     sub {
+       my $self = shift;
+       $self->{color_bias_blue} = 128;
+       $self->{color_bias_green} = 0;
+       $self->{color_bias_red} = 128;
+       $self->_mandel_recolor();
        }),
 
     $self->add_event_handler (SDL_KEYDOWN, SDLK_3,
@@ -441,6 +553,13 @@ sub _mandel_reset
     {
     $self->{cache}->[$i] = [];
     }
+  if ($use_perl != 0)
+    {
+    Math::Fractal::Mandelbrot->set_bounds(
+      $self->{x1}, $self->{y1}, $self->{x2}, $self->{y2},
+      $self->{width}, $self->{height},
+      );
+    }
   }
 
 sub _mandel_zoom
@@ -458,12 +577,12 @@ sub _mandel_zoom
   if ($factor > 1)
     {
     # zooming in, so calculate a bit further
-    $self->{max_iter} += 150;
+    $self->{max_iter} += 500;		# 5/1
     }
   else
     {
     # zooming out, so step back
-    $self->{max_iter} -= 150;
+    $self->{max_iter} -= 200;		# 1/2
     }
   $factor *= 2;
   $xs = ($self->{x2} - $self->{x1});
@@ -472,6 +591,14 @@ sub _mandel_zoom
   $self->{x2} = $xc + $xs / $factor;
   $self->{y1} = $yc - $ys / $factor;
   $self->{y2} = $yc + $ys / $factor;
+  if ($use_perl != 0)
+    {
+    Math::Fractal::Mandelbrot->set_max_iter($self->{max_iter});
+    Math::Fractal::Mandelbrot->set_bounds(
+     $self->{x1}, $self->{y1}, $self->{x2}, $self->{y2},
+     $self->{width}, $self->{height},
+     );
+    }
   }
 
 1;

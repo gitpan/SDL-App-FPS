@@ -85,6 +85,7 @@ sub _should_fire
   $self->{due} = 1;
   $self->{overdue} = $now - $self->{next_shot};		# we are so late
   # our next shot will be then (regardless of when this shot was fired)
+
   $self->{next_shot} += $self->{delay};
   if ($self->{rand} != 0)
     {

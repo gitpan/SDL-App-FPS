@@ -19,6 +19,18 @@ my $options = { width => 640, height => 480, max_fps => 20 };
 
 print "SDL Mandelbrot (C) v0.02 2002,2003 by Tels <http://Bloodgate.com/>\n\n";
 
+if (SDL::App::FPS::MyMandel::use_perl() == 0)
+  {
+  print "\n Warning: Cannot find Math::Fractal::Mandelbrot,",
+        " for more speed please install\n it from search.cpan.org.",
+        " Using Perl code as fallback.\n\n";
+  }
+else
+  {
+  print "\n Using Math::Fractal::Mandelbrot v",
+  "$Math::Fractal::Mandelbrot::VERSION as speed-booster.\n\n";
+  }
+
 my $app = SDL::App::FPS::MyMandel->new( $options );
 $app->main_loop();
 

@@ -28,7 +28,7 @@ use vars qw/@ISA $VERSION @EXPORT_OK/;
 
 @EXPORT_OK = qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE/;
 
-$VERSION = '0.13';
+$VERSION = '0.14';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -398,22 +398,6 @@ sub current_fps
   $self->{_app}->{current_fps};
   }
 
-#sub max_frame_time
-# {
-#  # return maximum time per frame ever
-#  my $self = shift;
-#
-#  $self->{_app}->{max_frame_time};
-#  }
-#
-#sub min_frame_time
-#  {
-#  # return minimum time per frame ever
-#  my $self = shift;
-#
-#  $self->{_app}->{min_frame_time};
-#  }
-
 sub frames
   {
   # return number of frames already drawn
@@ -481,29 +465,29 @@ sub _handle_events
   my $done = 0;
   my $app = $self->{_app};
   my $event = $app->{event};
+  $app->{handled_events} = 0;			# count handled ones
   # inner while to handle all events, not only one per frame
   #print $event->set_key_repeat(250,100);
   while ($event->poll())			# got one event?
     {
+    $app->{handled_events}++;			# count 'em
     return 1 if $event->type() == SDL_QUIT;	# check this first
-    # check event with all registered event handlers
-    # TODO: group event handlers on type, and let event only be checked
-    # by the appropriate handlers for speed
 
     my $type = $event->type();
-    # print "$type\n";
+    my $key_sym = $event->key_sym();
 
-    # hack for now: find all active handlers, and check event only with
-    # these
-    my $handler = $app->{event_handler};
-    my @active = ();
-    foreach my $id (keys %$handler)
+    # Check event with all registered active event handlers, the foreach loop
+    # uses (internaly) a copy of keys, so that deleting/adding keys
+    # will not change the list of checked event handler while we loop over
+    # them. This is necc. lest some handler activates another handler, which
+    # should not checked this time, or deactivates some, which *should* be
+    # checked this time. (e.g. (de)activation counts only in the next frame)
+    # check only active ones, but use global hash to access them
+    my $handler = $app->{event_handler}->{$type};
+    my $handlers = $app->{event_handlers};
+    foreach my $h (keys %$handler)
       {
-      push @active, $handler->{$id} if $handler->{$id}->is_active();
-      }
-    foreach my $h (@active)
-      {
-      $h->check($event);
+      $handlers->{$h}->check($event,$type,$key_sym);
       }
 
     next if $type != SDL_MOUSEBUTTONDOWN && $type != SDL_MOUSEBUTTONUP &&
@@ -511,14 +495,14 @@ sub _handle_events
 
     # for all active buttons, do the same
     my $buttons = $app->{buttons};
-    @active = ();
+    my @active = ();
     foreach my $id (keys %$buttons)
       {
       push @active, $buttons->{$id} if $buttons->{$id}->is_active();
       }
     foreach my $b (@active)
       {
-      $b->check($event);
+      $b->check($event,$type);
       }
 
     }
@@ -530,7 +514,7 @@ sub quit
   # can be called to quit the application
   my $self = shift;
 
-  $self->{_app}->{quit} = 1;		# make next handle_events quit
+  $self->{_app}->{quit} = 1;		# make next _handle_events() quit
   }
 
 sub pause
@@ -592,6 +576,38 @@ sub main_loop
   }
 
 ##############################################################################
+# deletes a timer, event handler or button, depending on the type of object
+# passed as argument
+
+sub del_thing
+  {
+  my ($self,$obj) = @_;
+
+  if (!ref($obj))
+    {
+    require Carp;
+    Carp::croak ("Need an object reference for del()");
+    }
+  if ($obj->isa('SDL::App::FPS::Button'))
+    {
+    $self->del_button($obj);
+    }
+  elsif ($obj->isa('SDL::App::FPS::Timer'))
+    {
+    $self->del_timer($obj);
+    }
+  elsif ($obj->isa('SDL::App::FPS::EventHandler'))
+    {
+    $self->del_event_handler($obj);
+    }
+  else
+    {
+    require Carp;
+    Carp::croak ("Need a timer, event handler or button for del()");
+    }
+  }
+
+##############################################################################
 # button stuff
 
 sub add_button
@@ -612,7 +628,7 @@ sub del_button
   # delete a buttom with a specific id
   my ($self,$id) = @_;
 
-  $id = $id->{id} if ref($id) eq 'SDL::App::FPS::Button';
+  $id = $id->{id} if ref($id) && $id->isa('SDL::App::FPS::Button');
 
   my $app = $self->{_app};
   delete $app->{buttons}->{$id};
@@ -634,11 +650,21 @@ sub add_timer
   my $timer = SDL::App::FPS::Timer->new(
     $self, $time, $count, $delay, $rand, $app->{current_time}, $callback,
     @args);
-  return undef if $timer->count() == 0;		# timer fired once, and expired
+  return undef if $timer->{count} == 0;		# timer fired once, and expired
 
   # otherwise remember it
   $app->{timers}->{$timer->{id}} = $timer;
-  $app->{next_timer_check} = 0;			# disable (always check)
+  # comes before last timer?
+  if ($app->{time_warp} > 0)
+    {
+    $app->{next_timer_check} = $timer->{next_shot} if
+      $app->{next_timer_check} > $timer->{next_shot};
+    }
+  else
+    {
+    $app->{next_timer_check} = $timer->{next_shot} if
+      $app->{next_timer_check} > $timer->{next_shot};
+    }
   $app->{timer_modified} = 1;
   $timer;
   }
@@ -650,15 +676,17 @@ sub _expire_timers
 
   my $app = $self->{_app};
   return 0 if scalar keys %{$app->{timers}} == 0;	# no timers?
-  return 0 if $app->{time_warp} == 0;			# time stand still
+  return 0 if $app->{time_warp} == 0;			# time stands still
 
   $app->{timer_modified} = 0;				# track add/del
   my $now = $app->{current_time};			# timers are warped
   my $time_warp = $app->{time_warp};			# timers are warped
-
+    
+  $app->{next_timer_check} = 0;				# not known yet
+     
   # check (active) timers for beeing due 
   # actually, inactive timer will simple be not due
-  my $due = [];
+  my $due = []; my @delete = ();
   foreach my $id (keys %{$app->{timers}})
     {
     my $timer = $app->{timers}->{$id}; my $overdue;
@@ -668,11 +696,33 @@ sub _expire_timers
         {
         # timer should have fired, so remember it and it's overdue value
         push @$due, [ $timer, $overdue ];
-        $app->{timer_modified} = 1 && delete $app->{timers}->{$id}
+        # $app->{timer_modified} = 1 && delete $app->{timers}->{$id}
+        $app->{timer_modified} = 1 && push (@delete, $id)
          if $timer->{count} == 0;		# remove any exhausted timer
         }
       # if timer's next shot would also be before $now, add it also
       } while (defined $overdue);
+    # this timer will be due next time then:
+
+    # this will also timers that do not fire again, since these set it to 1
+    next if $app->{timer_modified} != 0;	# if disabled, don't bother
+
+    # if not yet know, take at least this
+    if ($app->{next_timer_check} == 0)
+      {
+      $app->{next_timer_check} = $timer->{next_shot};
+      next;
+      }
+    if ($app->{time_warp} > 0)
+      {
+      $app->{next_timer_check} = $timer->{next_shot}
+          if $timer->{next_shot} < $app->{next_timer_check};
+      }
+    else
+      {
+      $app->{next_timer_check} = $timer->{next_shot}
+        if $timer->{next_shot} > $app->{next_timer_check};
+      }
     }
 
   # fire due timers sorted on their overdue value
@@ -682,24 +732,11 @@ sub _expire_timers
     $timer->fire($t->[1]);
     my $id = $timer->{id};
 
-    # if the timer would need to fire again, keep it
-    if ($app->{timer_modified} == 0)	# if disabled, don't bother
-      {
-      # else (it does not need to fire again):
-      # remember nearest time to fire a timer
-      if ($app->{time_warp} > 0)
-        {
-        $app->{next_timer_check} = $timer->{next_shot}
-          if $timer->{next_shot} < $app->{next_timer_check} ||
-           $app->{next_timer_check} == 0;
-        }
-      else
-        {
-        $app->{next_timer_check} = $timer->{next_shot}
-          if $timer->{next_shot} > $app->{next_timer_check} ||
-           $app->{next_timer_check} == 0;
-        }
-      }
+    }
+  # remove any exhausted timer
+  foreach my $id (@delete)
+    {
+    delete $app->{timers}->{$id};
     }
 
   $app->{next_timer_check} = 0			# disable (always check)
@@ -728,7 +765,7 @@ sub del_timer
   # delete a timer with a specific id
   my ($self,$id) = @_;
 
-  $id = $id->{id} if ref($id) eq 'SDL::App::FPS::Timer';
+  $id = $id->{id} if ref($id) && $id->isa('SDL::App::FPS::Timer');
 
   my $app = $self->{_app};
   $app->{next_timer_check} = 0;		# disable (always check)
@@ -747,22 +784,77 @@ sub add_event_handler
   my $handler =
     SDL::App::FPS::EventHandler->new($self,$type,$kind,$callback,@args);
 
-  $self->{_app}->{event_handler}->{$handler->{id}} = $handler;
+  # key handlers based on $type
+  my $id = $handler->{id};
+  my $app = $self->{_app};
+  # newly created onces are active
+  $app->{event_handler}->{$type}->{$id} = $handler;
+  # and also gather them in one big group
+  $app->{event_handlers}->{$id} = $handler;
   }
 
 sub del_event_handler
   {
-  my ($self,$handler) = @_;
+  my ($self,$id) = @_;
+  
+  my $type = $id->{type};
 
-  delete $self->{_app}->{event_handler}->{$handler->{id}};
+  $id = $id->{id} if ref($id) && $id->isa('SDL::App::FPS::EventHandler');
+
+  my $app = $self->{_app};
+  if (exists $app->{event_handlers}->{$id})
+    {
+    my $handler = $app->{event_handlers}->{$id};
+    my $type = $handler->{type};
+    delete $app->{event_handlers}->{$id};
+    delete $app->{event_handler}->{$type}->{$id};
+    }
   }
 
 sub _rebound_event_handler
   {
   # When an event handler's rebind() method is called, it will notify the
   # application of this change via _rebound_event_handler()
-  my ($self,$handler) = @_;
+  my ($self,$handler,$old_type) = @_;
   
+  # move it from one group to another
+  my $id = $handler->{id};
+  my $app = $self->{_app};
+  delete $app->{event_handler}->{$old_type}->{$id};
+  $app->{event_handler}->{$handler->{type}}->{$id} = $handler;
+  }
+
+sub _deactivated_thing
+  {
+  # When a thing (timer, event handler, button etc) is deactivated, it
+  # notifies the app by calling this routine with itself as argument
+  my ($self,$thing) = @_;
+  
+  # do nothing for timers and buttons yet
+  return unless ref($thing) && $thing->isa('SDL::App::FPS::EventHandler');
+  
+  # remove it from the group of handlers that will be checked, it will
+  # still remain in the entire group
+  my $id = $thing->{id};
+  my $app = $self->{_app};
+  my $type = $thing->{type};
+  delete $app->{event_handler}->{$type}->{$id};			# delete here
+  }
+
+sub _activated_thing
+  {
+  # When a thing (timer, event handler, button etc) is (re)activated, it
+  # notifies the app by calling this routine with itself as argument
+  my ($self,$thing) = @_;
+  
+  # do nothing for timers and buttons yet
+  return unless ref($thing) && $thing->isa('SDL::App::FPS::EventHandler');
+  
+  # add it to the group of handlers that will be checked
+  my $id = $thing->{id};
+  my $app = $self->{_app};
+  my $type = $thing->{type};
+  $app->{event_handler}->{$type}->{$id} = $thing;		# add here
   }
 
 ##############################################################################
@@ -1630,9 +1722,25 @@ Removes unnecc. timers from the list.
 
 =item _ramp_time_warp()
 
-sub _resized()
+=item _resized()
 
 Automatically called whenever our window got resized.
+
+=item _activated_thing
+
+	$app->_activated_thing($thing);
+
+When a thing (timer, event handler, button etc) is (re)activated, it
+notifies the app by calling this routine with itself as argument. Done
+automatically by the thing itself.
+
+=item _deactivated_thing
+	
+	$app->_deactivated_thing($thing);
+ 
+When a thing (timer, event handler, button etc) is deactivated, it
+notifies the app by calling this routine with itself as argument. Done
+automatically by the thing itself.
 
 =back
 

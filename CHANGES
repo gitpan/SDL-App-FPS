@@ -214,7 +214,34 @@ SDL::App::FPS:
   * added examples/boulder/ - a simple game in a cave, showing resizing w/
     min. window size, keeping a playfield with a fog-o-war
   * added examples/keycheck.pl to show event handlers with key modifiers 
-  
+
+2003-01-23 v0.14 Tels - 255 tests
+ mandel.pl
+  * optimized MyMandel.pm's _mandel_point() a bit (43 instead of 45 seconds)
+  * re-use SDL::Color objects in draw_point() makes it about 15% faster
+  * MyMandel.pm use Math::Fractal::Mandelbrot if possible (9 vs 42 seconds)
+  * recolor the image by pressing one of: 'r', 'g', 'b', 'p' or 'y'
+    (next image will be done with the newly set color preset)
+ Library:
+  * corrected Color.pm's =head1 NAME section to allow indexing in CPAN
+  * Color.pm: desaturate($color,$r,$g,$b) - convert color to gray-scale
+  * Color.pm: invert($color) - invert color
+  * Group.pm: added $group->clear()
+  * FPS.pm: added del_thing()
+  * better subclass handling of timers, event handlers and buttons
+  * pass $type to check() for about 25% faster event and button check/handling
+  * sort event handlers into groups based on type and check only these
+    that match the current event. So mouse move handlers don't get activated
+    for keydown events etc. No functional change, just faster.
+  * Thingy.pm calls $app->_activated_thing($self) and
+    $app->_deactivated_thing($self) to allow app to sort handlers etc into
+    active and inactive ones (e.g. inactive event handlers are no longer
+    called to check occuring events => slightly faster if you have lot's of
+    inactive ones)
+  * Thingy: don't (de)activate() if Thingy is already (in)active
+  * corrected bug in timer firing introduced by timer expiring optimization
+  * workaround bug in SDL::Event.pm that crashes us when using KMOD_foo
+
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

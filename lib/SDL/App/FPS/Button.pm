@@ -14,7 +14,7 @@ use vars qw/@ISA @EXPORT_OK $VERSION/;
 
 use SDL::Event;
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 @EXPORT_OK = qw/ 
   BUTTON_IN
@@ -194,15 +194,13 @@ sub _hit_elliptic ($$$)
   ($xdiff + $ydiff <= $self->{r2}) <=> 0;
   }
 
-sub check ($$)
+sub check ($$$)
   {
   # check whether the event occured in our area or not
-  my ($self,$event) = @_;
+  my ($self,$event,$type) = @_;
 
   return unless $self->{active};
 
-  my $type = $event->type();
- 
   my $callback = $self->{callback}; 
 
   return unless defined $callback;	# no callback given

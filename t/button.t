@@ -52,6 +52,9 @@ sub motion_y { 2; }
 
 package main;
 
+my $de = 0; sub _deactivated_thing { $de ++; }
+my $ac = 0; sub _activated_thing { $ac ++; }
+
 # create button
 
 my $pressed = {};
@@ -101,10 +104,10 @@ is ($button->activate(), 1, 'handler is active again');
 my $dummyevent = DummyEvent->new();
 
 $button->deactivate();
-$button->check($dummyevent);
+$button->check($dummyevent,$dummyevent->type);
 is ($pressed->{$button->id()} || 0, 0, 'callback was not called');
 $button->activate();
-$button->check($dummyevent);
+$button->check($dummyevent,$dummyevent->type);
 is ($pressed->{$button->id()}|| 0, 0, 'callback was not called');
 
 $button = SDL::App::FPS::Button->new
@@ -120,7 +123,7 @@ $button = SDL::App::FPS::Button->new
     $pressed->{$button->id()}++; 
    }, 123, 345
   );
-$button->check($dummyevent);
+$button->check($dummyevent,$dummyevent->type);
 is ($pressed->{$button->id()}, 1, 'callback was ok');
 
 

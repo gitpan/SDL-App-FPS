@@ -47,10 +47,14 @@ sub new { bless { button => $_[1] }, 'DummyEventMouse'; }
 sub type { SDL_MOUSEBUTTONDOWN; }
 sub button { $_[0]->{button}; }			# RMB 
 sub key_mod { 0; }
+sub key_sym { 0; }
 
 ##############################################################################
 
 package main;
+
+my $de = 0; sub _deactivated_thing { $de ++; }
+my $ac = 0; sub _activated_thing { $ac ++; }
 
 # create eventhandler
 
@@ -71,10 +75,10 @@ is ($handler->activate(), 1, 'handler is active again');
 my $dummyevent = DummyEvent->new();
 
 $handler->deactivate();
-$handler->check($dummyevent);
+$handler->check($dummyevent,$dummyevent->type(),$dummyevent->key_sym());
 is ($space_pressed, 0, 'callback was not called');
 $handler->activate();
-$handler->check($dummyevent);
+$handler->check($dummyevent,$dummyevent->type(),$dummyevent->key_sym());
 is ($space_pressed, 1, 'callback was called');		# bug in v0.07
 
 my $pressed = 0;
@@ -82,10 +86,10 @@ $dummyevent = DummyEventMouse->new( BUTTON_MOUSE_LEFT );
 $handler = SDL::App::FPS::EventHandler->new
   ('main', SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_LEFT + BUTTON_MOUSE_RIGHT,
    sub { $pressed++; }, );
-$handler->check($dummyevent);
+$handler->check($dummyevent,$dummyevent->type(),$dummyevent->key_sym());
 is ($pressed, 1, 'callback was called');
 $dummyevent = DummyEventMouse->new( BUTTON_MOUSE_RIGHT );
-$handler->check($dummyevent);
+$handler->check($dummyevent,$dummyevent->type(),$dummyevent->key_sym());
 is ($pressed, 2, 'callback was called again');
   
 is ($handler->require_all_modifiers(), 0, 'require all');

@@ -109,6 +109,21 @@ sub deactivate
   $self;
   }
 
+sub clear
+  {
+  # delete all members of the group
+  my $self = shift;
+  
+  my $app = $self->{app};
+  foreach my $id (keys %{$self->{members}})
+    {
+    my $obj = $self->{members}->{$id};
+    $app->del_thing($obj);
+    }
+  $self->{members} = {};			# clear ptrs to members
+  $self;
+  }
+
 1;
 
 __END__
@@ -117,7 +132,7 @@ __END__
 
 =head1 NAME
 
-SDL::App::FPS::Group - a container class for SDL::App::FPS
+SDL::App::FPS::Group - a container class for SDL::App::FPS thingies
 
 =head1 SYNOPSIS
 
@@ -223,6 +238,14 @@ Activate each member of the group by calling it's activate() method.
 	$group->deactivate();
 
 Deactivate each member of the group by calling it's deactivate() method.
+
+=item clear
+
+	$group->clear();
+
+This deregisters all members of the group with the application and then deletes
+all ptrs the group has to the members. In case the group was the only container
+holding these members, they will be destroyed and their memory freed.
 
 =back
 

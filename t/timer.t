@@ -28,6 +28,9 @@ sub fire
   $fired++;
   }
 
+my $de = 0; sub _deactivated_thing { $de ++; }
+my $ac = 0; sub _activated_thing { $ac ++; }
+
 ##############################################################################
 # timer with limited count
 

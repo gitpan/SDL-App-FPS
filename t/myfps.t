@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 43;
+use Test::More tests => 45;
 use strict;
 
 BEGIN
@@ -35,6 +35,8 @@ can_ok ('SDL::App::MyFPS', qw/
   watch_event
   save load
   _resized 
+  _deactivated_thing _activated_thing
+  del_thing
   in_fullscreen
   BUTTON_MOUSE_LEFT
   BUTTON_MOUSE_RIGHT
@@ -129,4 +131,16 @@ if (scalar keys %$app != 2)
 is (exists $app->{_app}, 1, 'data all encapsulated');
 is (exists $app->{myfps}, 1, 'data all encapsulated');
 
- 
+##############################################################################
+# group clear
+
+my $group = $app->add_group();
+$group->add (
+  $app->add_button(1,2,3,4),
+  $app->add_timer(20, 1, 0, 0, sub { $timer++ } ),
+  $app->add_event_handler(SDL_KEYDOWN, SDLK_q, { }),
+  );
+is ($group->members(), 3, 'three members signed up');
+$group->clear();
+is ($group->members(), 0, 'three members gone');
+

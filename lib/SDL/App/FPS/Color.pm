@@ -20,7 +20,7 @@ $VERSION = '0.02';
   GRAY LIGHTGRAY DARKGRAY
   GREY LIGHTGREY DARKGREY
   LIGHTRED DARKRED LIGHTBLUE DARKBLUE LIGHTGREE DARKGREEN
-  darken lighten blend
+  darken lighten blend desaturate invert
   /;
 
 use SDL::Color;
@@ -93,7 +93,7 @@ sub darken
     require Carp; Carp::croak ("Darkening factor must be between 0..1");
     }
   $factor = 1-$factor;
-  return SDL::Color->new ( 
+  SDL::Color->new ( 
     -r => $color->r() * $factor, 
     -g => $color->g() * $factor, -b => $color->b() * $factor);
   }
@@ -110,10 +110,46 @@ sub lighten
   my $r = $color->r();
   my $g = $color->g();
   my $b = $color->b();
-  return SDL::Color->new ( 
+  SDL::Color->new ( 
     -r => $r + (0xff - $r) * $factor, 
     -g => $g + (0xff - $g) * $factor, 
     -b => $b + (0xff - $b) * $factor ); 
+  }
+
+sub invert
+  {
+  shift unless ref($_[0]);	# allow SDL::App::FPS::Color->desaturate()
+  my ($color) = @_;
+
+  SDL::Color->new ( 
+    -r => 255 - $color->r(),
+    -g => 255 - $color->g(),
+    -b => 255 - $color->b());
+  }
+
+sub desaturate
+  {
+  shift unless ref($_[0]);	# allow SDL::App::FPS::Color->desaturate()
+  my ($color,$r,$g,$b) = @_;
+
+  $r = 1 if !defined $r;
+  $g = 1 if !defined $g;
+  $b = 1 if !defined $b;
+
+  if ($r < 0 || $r > 1)
+    {
+    require Carp; Carp::croak ("Desaturate red factor must be between 0..1");
+    }
+  if ($g < 0 || $g > 1)
+    {
+    require Carp; Carp::croak ("Desaturate green factor must be between 0..1");
+    }
+  if ($b < 0 || $b > 1)
+    {
+    require Carp; Carp::croak ("Desaturate blue factor must be between 0..1");
+    }
+  my $rgb = ($color->r() * $r + $color->g() * $g + $color->b() * $b)/ 3;
+  SDL::Color->new ( -r => $rgb, -g => $rgb, -b => $rgb );
   }
 
 sub blend
@@ -128,7 +164,7 @@ sub blend
   my $r = $color_a->r();
   my $g = $color_a->g();
   my $b = $color_a->b();
-  return SDL::Color->new ( 
+  SDL::Color->new ( 
     -r => $r + ($color_b->r() - $r) * $factor, 
     -g => $g + ($color_b->g() - $g) * $factor, 
     -b => $b + ($color_b->b() - $b) * $factor ); 
@@ -142,7 +178,7 @@ __END__
 
 =head1 NAME
 
-SDL::App::FPS::Color- provides color names => SDL::Color mapping
+SDL::App::FPS::Color - provides color names => SDL::Color mapping
 
 =head1 SYNOPSIS
 
@@ -198,6 +234,30 @@ a color of 50% higher color values from the original color.
 C<$factor> must be between 0 (result is C<$color_a>) and 1 (result is
 C<$color_b>). C<blend()> creates a blended color from the two colors. A
 factor of 0.5 means it will result in exact the middle of color A and color B.
+
+=head2 invert
+
+	$new_color = SDL::App::FPS::Color::invert($color);
+
+Inverts a color - black will be white, white will be black, and blue will be
+yellow, etc.
+
+=head2 desaturate
+
+	$new_color = SDL::App::FPS::Color::desaturate($color,$rb,$gf,$bf);
+
+Converts a color to grayscale. The default is just averaging the three
+components red, green and blue (meaning C<$rf>, C<$gf> and C>$bf> are 1.0).
+
+You can pass values between 0..1 for C<$rf>, C<$gf> and C<$bf>, for instance:
+
+	$gray = SDL::App::FPS::Color::desaturate($color, 0, 1, 1);
+
+This would ignore the red component completely, making the grayscale based only
+on the green and blue parts. Or maybe you want to simulate that the human eye
+is more sensitive to green:
+
+	$gray = SDL::App::FPS::Color::desaturate($color, 0.6, 1, 0.6);
 
 =head1 AUTHORS
 

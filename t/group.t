@@ -15,7 +15,7 @@ BEGIN
 
 can_ok ('SDL::App::FPS::Group', qw/ 
   member members add del
-  new _init activate is_active deactivate id
+  new _init activate is_active deactivate id clear
   /);
 
 ##############################################################################

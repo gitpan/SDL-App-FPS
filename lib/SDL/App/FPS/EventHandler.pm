@@ -16,7 +16,7 @@ use vars qw/@ISA $VERSION @EXPORT_OK/;
 
 use SDL::Event;
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 sub _init
   {
@@ -29,13 +29,6 @@ sub _init
   $self->{args} = [ @_ ];
 
   $self->_init_mod();
-  }
-
-BEGIN
-  {
-  no warnings 'redefine';
-  *{KMOD_LSHIFT} = \&SDL::KMOD_LSHIFT;
-  # etc ...
   }
 
 my $remap = {
@@ -106,17 +99,15 @@ sub require_all_modifiers
 sub check
   {
   # check whether the event matched the occured event or not
-  my ($self,$event) = @_;
+  my ($self,$event,$type,$key) = @_;
 
   return if $self->{active} == 0;
 
-  my $type = $event->type();  
   return unless $type == $self->{type};
 
   if ($type == SDL_KEYDOWN || $type == SDL_KEYUP)
     {
-    my $kind = $event->key_sym();
-    return unless $kind == $self->{kind};
+    return unless $key == $self->{kind};
     }
   elsif ($type == SDL_MOUSEBUTTONUP || $type == SDL_MOUSEBUTTONDOWN)
     {
@@ -158,25 +149,26 @@ sub check
   &{$self->{callback}}($self->{app},$self,$event,@{$self->{args}});
   }
 
-sub rebind
+sub rebind ($$$)
   {
   my ($self) = shift;
 
+  my $old_type = $self->{type};
   $self->{type} = shift;
   $self->{kind} = shift;
   $self->_init_mod();
-  $self->{app}->_rebound_event_handler($self);
+  $self->{app}->_rebound_event_handler($self,$old_type);
   $self; 
   }
 
-sub type
+sub type ()
   {
   # return the type this event handler watches out for
   my $self = shift;
   $self->{type};
   }
 
-sub kind
+sub kind ()
   {
   # return the kind this event handler watches out for
   my $self = shift;
@@ -211,32 +203,32 @@ my $char2key = {
   y => SDLK_y,
   z => SDLK_z,
   
-  A => [ SDLK_a, KMOD_SHIFT ],
-  B => [ SDLK_b, KMOD_SHIFT ],
-  C => [ SDLK_c, KMOD_SHIFT ],
-  D => [ SDLK_d, KMOD_SHIFT ],
-  E => [ SDLK_e, KMOD_SHIFT ],
-  F => [ SDLK_f, KMOD_SHIFT ],
-  G => [ SDLK_g, KMOD_SHIFT ],
-  H => [ SDLK_h, KMOD_SHIFT ],
-  I => [ SDLK_i, KMOD_SHIFT ],
-  J => [ SDLK_j, KMOD_SHIFT ],
-  K => [ SDLK_k, KMOD_SHIFT ],
-  L => [ SDLK_l, KMOD_SHIFT ],
-  M => [ SDLK_m, KMOD_SHIFT ],
-  N => [ SDLK_n, KMOD_SHIFT ],
-  O => [ SDLK_o, KMOD_SHIFT ],
-  P => [ SDLK_p, KMOD_SHIFT ],
-  Q => [ SDLK_q, KMOD_SHIFT ],
-  R => [ SDLK_r, KMOD_SHIFT ],
-  S => [ SDLK_s, KMOD_SHIFT ],
-  T => [ SDLK_t, KMOD_SHIFT ],
-  U => [ SDLK_u, KMOD_SHIFT ],
-  V => [ SDLK_v, KMOD_SHIFT ],
-  W => [ SDLK_w, KMOD_SHIFT ],
-  X => [ SDLK_x, KMOD_SHIFT ],
-  Y => [ SDLK_y, KMOD_SHIFT ],
-  Z => [ SDLK_z, KMOD_SHIFT ],
+  A => [ SDLK_a, SDL::KMOD_SHIFT ],
+  B => [ SDLK_b, SDL::KMOD_SHIFT ],
+  C => [ SDLK_c, SDL::KMOD_SHIFT ],
+  D => [ SDLK_d, SDL::KMOD_SHIFT ],
+  E => [ SDLK_e, SDL::KMOD_SHIFT ],
+  F => [ SDLK_f, SDL::KMOD_SHIFT ],
+  G => [ SDLK_g, SDL::KMOD_SHIFT ],
+  H => [ SDLK_h, SDL::KMOD_SHIFT ],
+  I => [ SDLK_i, SDL::KMOD_SHIFT ],
+  J => [ SDLK_j, SDL::KMOD_SHIFT ],
+  K => [ SDLK_k, SDL::KMOD_SHIFT ],
+  L => [ SDLK_l, SDL::KMOD_SHIFT ],
+  M => [ SDLK_m, SDL::KMOD_SHIFT ],
+  N => [ SDLK_n, SDL::KMOD_SHIFT ],
+  O => [ SDLK_o, SDL::KMOD_SHIFT ],
+  P => [ SDLK_p, SDL::KMOD_SHIFT ],
+  Q => [ SDLK_q, SDL::KMOD_SHIFT ],
+  R => [ SDLK_r, SDL::KMOD_SHIFT ],
+  S => [ SDLK_s, SDL::KMOD_SHIFT ],
+  T => [ SDLK_t, SDL::KMOD_SHIFT ],
+  U => [ SDLK_u, SDL::KMOD_SHIFT ],
+  V => [ SDLK_v, SDL::KMOD_SHIFT ],
+  W => [ SDLK_w, SDL::KMOD_SHIFT ],
+  X => [ SDLK_x, SDL::KMOD_SHIFT ],
+  Y => [ SDLK_y, SDL::KMOD_SHIFT ],
+  Z => [ SDLK_z, SDL::KMOD_SHIFT ],
 
   0 => SDLK_0,
   1 => SDLK_1,
@@ -265,7 +257,7 @@ __END__
 
 =head1 NAME
 
-SDL::App::FPS::EventHandler - a event handler class for SDL::App::FPS
+SDL::App::FPS::EventHandler - an event handler class for SDL::App::FPS
 
 =head1 SYNOPSIS
 

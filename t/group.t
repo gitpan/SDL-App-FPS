@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 17;
+use Test::More tests => 23;
 use strict;
 
 BEGIN
@@ -14,7 +14,8 @@ BEGIN
   }
 
 can_ok ('SDL::App::FPS::Group', qw/ 
-  new member members add del id
+  member members add del
+  new _init activate is_active deactivate id
   /);
 
 ##############################################################################
@@ -31,13 +32,28 @@ sub done
   $done++;
   }
 
+sub activate
+  {
+  $_[0]->{active} = 1;
+  }
+
+sub deactivate
+  {
+  $_[0]->{active} = 0;
+  }
+
+sub is_active
+  {
+  $_[0]->{active};
+  }
+
 ##############################################################################
 
 package main;
 
 # create group
 
-my $group = SDL::App::FPS::Group->new ( app => { } );
+my $group = SDL::App::FPS::Group->new( 'main' );
 
 is (ref($group), 'SDL::App::FPS::Group', 'group new worked');
 is ($group->id(), 1, 'group id is 1');
@@ -63,4 +79,17 @@ is ($group->contains(3), 1, 'group member 3 exist');
 # for_each
 is ($group->for_each('done'), $group, 'for_each did something');
 is ($done, 3 , 'three member methods called' );
+
+# activate/deactivate all
+$group->deactivate();
+for my $id (1..3)
+  {
+  is ($group->member($id)->is_active(), 0, "$id got deactivated");
+  }
+
+$group->activate();
+for my $id (1..3)
+  {
+  is ($group->member($id)->is_active(), 1, "$id got activated");
+  }
 

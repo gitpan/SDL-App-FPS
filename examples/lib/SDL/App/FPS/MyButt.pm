@@ -1,7 +1,7 @@
 
-# example subclass of SDL::App::FPS
+# example of SDL::App::FPS demonstrating clickable areas (aka buttons)
 
-package SDL::App::FPS::Demo;
+package SDL::App::FPS::MyButt;
 
 # (C) 2002 by Tels <http://bloodgate.com/>
 
@@ -91,6 +91,8 @@ sub _demo_animate_rectangle
     $rect->{y_s} = $rect->{y};
     $rect->{now} = $self->current_time();
     }
+  $rect->{button}->move_to(
+    $rect->{x} + $rect->{w} / 2,$rect->{y} + $rect->{h} / 2);
   0;
   }
 
@@ -117,32 +119,39 @@ sub draw_frame
   # using pause() would be a bit more efficient, though 
   return if $self->time_is_frozen();
 
-  # undraw the rectangle(s) at the current location
-  foreach my $rect (@{$self->{rectangles}})
+  my $rect = $self->{rectangles};
+
+  # check for loosing
+  if (keys %$rect >= 20)
     {
-    $self->_demo_draw_rectangle($rect,$self->{black});
+    $self->{score} -= 100;
+    $self->quit();
+    }
+
+  # undraw the rectangle(s) at the current location
+  foreach my $id (keys %$rect)
+    {
+    $self->_demo_draw_rectangle($rect->{$id},$self->{black});
     }
 
   # move them
-  my @keep = ();
-  foreach my $rect (@{$self->{rectangles}})
+  foreach my $id (keys %$rect)
     {
-    my $rc = $self->_demo_animate_rectangle($rect);
+    my $rc = $self->_demo_animate_rectangle($rect->{$id});
     # keep it ?
-    push @keep, $rect if ($rc == 0);
+    delete $rect->{$id} unless $rc == 0;
     }
-  $self->{rectangles} = [ @keep ];
 
   # redraw the rectangles at their current location
-  foreach my $rect (@{$self->{rectangles}})
+  foreach my $id (keys %$rect)
     {
-    $self->_demo_draw_rectangle($rect,$rect->{color});
+    $self->_demo_draw_rectangle($rect->{$id},$rect->{$id}->{color});
     }
   
   # update the screen with the changes
-  my $rect = SDL::Rect->new(
+  my $r = SDL::Rect->new(
    -width => $self->width(), -height => $self->height());
-  $self->update($rect);
+  $self->update($r);
 
   }
 
@@ -150,92 +159,27 @@ sub post_init_handler
   {
   my $self = shift;
  
-  $self->{rectangles} = [];
+  $self->{rectangles} = {};
+  $self->{id} = 0;
+  $self->{max} = 0;
   
   $self->{black} = new SDL::Color (-r => 0, -g => 0, -b => 0);
+  $self->{white} = new SDL::Color (-r => 0xff, -g => 0xff, -b => 0xff);
   $self->{PI} = 3.141592654;
 
+  $self->_demo_add_rect();
+  # add some at the start
+  $self->add_timer(20, 4, 100, 10, \&_demo_add_rect);
   # from time to time add a rectangle
-  $self->add_timer(800, -1, 3000, 0, \&_demo_add_rect);
-  # from time to time start a timer which will "fire" rectangles 
-  $self->add_timer(1200, -1, 4000, 0, \&_demo_add_fire);
+  $self->add_timer(500, -1, 2000, 400, \&_demo_add_rect);
   
   # set up the event handlers
   $self->watch_event ( 
     quit => SDLK_q, fullscreen => SDLK_f, freeze => SDLK_SPACE,
    );
 
-  $self->add_event_handler (SDL_KEYDOWN, SDLK_b, 
-   sub {
-     my $self = shift;
-     # run clock if it is currently halted
-     $self->thaw_time() if $self->time_is_frozen();
-     # let clock go backwards for a time
-     $self->ramp_time_warp (-1, 2000);
-     # and add a timer to set it automatically going forward again
-     # Note that the clock goes backward, so we must set a negative target
-     # time :)
-     $self->add_timer ( -3000, 1, 0, 0, 
-       sub {
-         my $self = shift; 
-         $self->ramp_time_warp (1, 2000); 
-       } );
-    });
-  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, LEFTMOUSEBUTTON, 
-   sub {
-     my $self = shift;
-     return if $self->time_is_ramping() || $self->time_is_frozen();
-     $self->ramp_time_warp('2',1500);		# ramp up
-     });
-  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, RIGHTMOUSEBUTTON, 
-   sub {
-     my $self = shift;
-     return if $self->time_is_ramping() || $self->time_is_frozen();
-     $self->ramp_time_warp('0.3',1500);		# ramp down
-     });
-  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, MIDDLEMOUSEBUTTON, 
-   sub {
-     my $self = shift;
-     return if $self->time_is_ramping() || $self->time_is_frozen();
-     $self->ramp_time_warp('1',1500);		# ramp to normal
-     });
-  }
-
-sub _demo_add_fire
-  {
-  my $self = shift;
-
-  $self->add_timer(100, 12, 80, 0, \&_demo_add_shot);
-  }
-
-sub _demo_add_shot
-  {
-  # add a shot to the screen going from right to left
-  my ($self,$timer,$timer_id,$overshot) = @_;
-    
-  # comment in this line to see how the row of shots is no longer
-  # uniform due to timer firing at start of frame, not when it is due
-  #$overshot = 0;
-
-  my $w = $self->width();
-  my $h = $self->height();
-
-  my $k = { 
-    x => $w - 8,
-    y => $h - 16,
-    w => 4,
-    h => 4,
-    angle => 180,
-    speed => 250,			# in pixel/second
-    now => $self->current_time() - $overshot,
-    col => 1,				# destroy
-  };
-  
-  $k->{x_s} = $k->{x};		 # start x
-  $k->{y_s} = $k->{y};		 # start y
-  $k->{color} = new SDL::Color ( -r => 0xff, -g => 0xff, -b => 0xff );
-  $k->{rect} = SDL::Rect->new();
-  push @{$self->{rectangles}}, $k;
+  $self->{won} = 0;
+  $self->{score} = 1000;	# if killed all instantly => max score
   }
 
 sub _demo_add_rect
@@ -243,18 +187,21 @@ sub _demo_add_rect
   # add a rectangle to our list
   my $self = shift;
     
+  $self->{score} -= 100;		# if you kill it, score will remain
+
   my $w = $self->width();
   my $h = $self->height();
 
   my $k = { 
-    x => ($w / 2) + rand($w / 10),
-    y => ($h / 2) + rand($h / 10),
+    x => ($w / 2) + rand($w / 5),
+    y => ($h / 2) + rand($h / 5),
     w => int(32 + rand(16)),
     h => 16,
     angle => rand(360),
-    speed => rand(100)+150,			# in pixel/second
+    speed => rand(100)+120,			# in pixel/second
     now => $self->current_time(),
     col => 0,					# bounce
+    id => $self->{id}++,
   };
   
   # make it a perfect square, independ from screen resolution (works only
@@ -268,7 +215,44 @@ sub _demo_add_rect
    -g => int(rand(8)+1) * 0x20 - 1,
    -b => int(rand(8)+1) * 0x20 - 1);
   $k->{rect} = SDL::Rect->new();
-  push @{$self->{rectangles}}, $k;
+  
+  $self->{rectangles}->{$k->{id}} = $k;
+  $k->{button} = 
+   $self->add_button(
+     int($k->{x} + ($k->{w} / 2)), int($k->{y} + ($k->{h} / 2)),
+     $k->{w}, $k->{h},
+    sub { 
+     my ($self,$button,$id) = @_;
+     $self->del_button($button);
+     print "1: Oh no, $id is down.\n";
+     # flash it
+     $self->{rectangles}->{$id}->{color} = $self->{white};
+     # and add timer to remove it a bit later
+     $self->add_timer(200, 1, 0, 0, 
+      sub { 
+       my ($self,$timer,$tid,$overshot,$id) = @_;
+       my $rect = $self->{rectangles};
+       $self->_demo_draw_rectangle ($rect->{$id},$self->{black});
+       #$rect->{$id}->{col} = 2;
+       delete $rect->{$id};
+       # check for win situation
+       if (keys %$rect == 0)
+         {
+         $self->{won}++;
+         $self->{score} += 100;
+         $self->quit();
+         }
+
+       $self->{score} += 50;
+       }, $id );
+    
+     },
+    $k->{id},
+    );
+
+  $self->{max} = scalar keys %{$self->{rectangles}} if
+   $self->{max} < scalar keys %{$self->{rectangles}};
+
   }
 
 1;

@@ -14,8 +14,8 @@ BEGIN
   }
 
 can_ok ('SDL::App::FPS::Timer', qw/ 
-  new count due id next_shot
-  activate deactivate is_active
+  count due next_shot
+  new _init activate is_active deactivate id
   _fire
   /);
 
@@ -31,7 +31,7 @@ sub fire
 ##############################################################################
 # timer with limited count
 
-my $timer = SDL::App::FPS::Timer->new (100, 2, 200, 0, 128, \&fire, ); 
+my $timer = SDL::App::FPS::Timer->new ('main', 100, 2, 200, 0, 128, \&fire, ); 
 
 is (ref($timer), 'SDL::App::FPS::Timer', 'timer new worked');
 is ($timer->id(), 1, 'timer id is 1');
@@ -52,7 +52,7 @@ is ($fired, 2, "timer didn't fire");
 ##############################################################################
 # timer with unlimited count
 
-$timer = SDL::App::FPS::Timer->new (0, -1, 200, 0, 128, \&fire, ); 
+$timer = SDL::App::FPS::Timer->new ('main', 0, -1, 200, 0, 128, \&fire, ); 
 
 is (ref($timer), 'SDL::App::FPS::Timer', 'timer new worked');
 is ($fired, 3, "timer already fired once");
@@ -75,13 +75,15 @@ sub fire2
   }
 
 # timer with additional arguments
-$timer = SDL::App::FPS::Timer->new (0, 1, 200, 0, 128, \&fire2, {}, 119, 117); 
+$timer = SDL::App::FPS::Timer->new 
+  ('main', 0, 1, 200, 0, 128, \&fire2, 119, 117); 
 is (ref($timer), 'SDL::App::FPS::Timer', 'timer new worked');
 
 # timer with negative target time (if clock goes backwards)
 
 $timer =
-  SDL::App::FPS::Timer->new (-1000, 1, 200, 0, 2000, \&fire2, {}, 119, 117); 
+  SDL::App::FPS::Timer->new (
+   'main', -1000, 1, 200, 0, 2000, \&fire2, 119, 117); 
 is (ref($timer), 'SDL::App::FPS::Timer', 'timer new worked');
 is ($timer->next_shot(), 1000, 'timer would fire in t-1000');
 
@@ -94,7 +96,8 @@ srand(3);					# reset for testing
 
 # test rand() in initial time
 $timer =
-  SDL::App::FPS::Timer->new (1000, 1, 2000, 400, 0, \&fire); 
+  SDL::App::FPS::Timer->new ( 
+   'main', 1000, 1, 2000, 400, 0, \&fire); 
 is (ref($timer), 'SDL::App::FPS::Timer', 'timer new worked');
 is ($timer->next_shot(), int(1000 + $rand[0] - 200), 'timer would fire ok');
 # test rand() in delay time
@@ -105,7 +108,7 @@ is ($timer->next_shot(),
 srand(3);					# definite rand for testing
 # test deactivated timers
 $timer =
-  SDL::App::FPS::Timer->new (1000, 1, 2000, 400, 0, \&fire); 
+  SDL::App::FPS::Timer->new ('main', 1000, 1, 2000, 400, 0, \&fire); 
 is (ref($timer), 'SDL::App::FPS::Timer', 'timer new worked');
 is ($timer->next_shot(), int(1000 + $rand[0] - 200), 'timer would fire ok');
 is ($timer->count(), 1, 'timer fires once');

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 12;
+use Test::More tests => 14;
 use strict;
 
 BEGIN
@@ -14,13 +14,12 @@ BEGIN
   }
 
 can_ok ('SDL::App::FPS::EventHandler', qw/ 
-  new rebind check id type kind
-  LEFTMOUSEBUTTON
-  RIGHTMOUSEBUTTON
-  MIDDLEMOUSEBUTTON
+  rebind check type kind
+  new _init activate is_active deactivate id
   /);
 
 use SDL::Event;
+use SDL::App::FPS::Button qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT/;
 
 ##############################################################################
 package DummyEvent;
@@ -33,6 +32,16 @@ sub new { bless { }, 'DummyEvent'; }
 sub type { SDL_KEYDOWN; }
 sub key_sym { SDLK_SPACE; }
 
+package DummyEventMouse;
+
+use SDL::Event;
+# a dummy event package to simulate an SDL::Event
+
+sub new { bless { button => $_[1] }, 'DummyEventMouse'; }
+
+sub type { SDL_MOUSEBUTTONDOWN; }
+sub button { $_[0]->{button}; }			# RMB 
+
 ##############################################################################
 
 package main;
@@ -41,8 +50,7 @@ package main;
 
 my $space_pressed = 0;
 my $handler = SDL::App::FPS::EventHandler->new
-  (SDL_KEYDOWN, SDLK_SPACE, sub { $space_pressed++; },
-  {});
+  ('main', SDL_KEYDOWN, SDLK_SPACE, sub { $space_pressed++; }, );
 
 is (ref($handler), 'SDL::App::FPS::EventHandler', 'handler new worked');
 is ($handler->id(), 1, 'handler id is 1');
@@ -62,4 +70,15 @@ is ($space_pressed, 0, 'callback was not called');
 $handler->activate();
 $handler->check($dummyevent);
 is ($space_pressed, 1, 'callback was called');		# bug in v0.07
+
+my $pressed = 0;
+$dummyevent = DummyEventMouse->new( BUTTON_MOUSE_LEFT );
+$handler = SDL::App::FPS::EventHandler->new
+  ('main', SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_LEFT + BUTTON_MOUSE_RIGHT,
+   sub { $pressed++; }, );
+$handler->check($dummyevent);
+is ($pressed, 1, 'callback was called');
+$dummyevent = DummyEventMouse->new( BUTTON_MOUSE_RIGHT );
+$handler->check($dummyevent);
+is ($pressed, 2, 'callback was called again');
 

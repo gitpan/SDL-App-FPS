@@ -7,11 +7,11 @@ package SDL::App::FPS::MyEvent;
 
 use strict;
 
-use SDL::App::FPS;
-use SDL::Event;
-use SDL::App::FPS::EventHandler qw/
-  LEFTMOUSEBUTTON RIGHTMOUSEBUTTON MIDDLEMOUSEBUTTON
+use SDL::App::FPS qw/
+  BUTTON_MOUSE_LEFT
   /;
+use SDL::Event;
+use SDL::App::FPS::EventHandler; 
 
 use vars qw/@ISA/;
 @ISA = qw/SDL::App::FPS/;
@@ -181,27 +181,15 @@ sub post_init_handler
   $self->{group_all} = $self->add_group();
 
   # setup the event handlers that are always active
-  my $group = $self->{group_all};
+  $self->watch_event (
+    quit => SDLK_q, freeze => SDLK_SPACE,
+   );
 
+  # this just for demo purposes
+  my $group = $self->{group_all};
   $group->add(
-    $self->add_event_handler (SDL_KEYDOWN, SDLK_q, 
-     sub { my $self = shift; $self->quit(); }),
-  
     $self->add_event_handler (SDL_KEYDOWN, SDLK_f, 
      sub { my $self = shift; $self->fullscreen(); }),
-
-    $self->add_event_handler (SDL_KEYDOWN, SDLK_SPACE, 
-     sub {
-       my $self = shift;
-      if ($self->time_is_frozen())
-        {
-        $self->thaw_time();
-        }
-      else
-        {
-        $self->freeze_time();
-        }
-      }),
     );
   
   # setup the event handlers that are active in state 2
@@ -222,7 +210,7 @@ sub post_init_handler
     
     $self->add_event_handler (SDL_KEYDOWN, SDLK_RETURN, 
      sub { my $self = shift; $self->_demo_state(1); }),
-    $self->add_event_handler (SDL_MOUSEBUTTONDOWN, LEFTMOUSEBUTTON, 
+    $self->add_event_handler (SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_LEFT, 
      sub { my $self = shift; $self->_demo_state(1); }),
     );
     
@@ -230,7 +218,7 @@ sub post_init_handler
   $group = $self->{group}->{1};
 
   $group->add(
-    $self->add_event_handler (SDL_MOUSEBUTTONDOWN, LEFTMOUSEBUTTON, 
+    $self->add_event_handler (SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_LEFT, 
      sub { my $self = shift; $self->_demo_state(2); }),
     $self->add_event_handler (SDL_KEYDOWN, SDLK_RETURN, 
      sub { my $self = shift; $self->_demo_state(2); }),
@@ -306,11 +294,12 @@ sub _demo_state
     {
     if ($state == $state_id)
       {
-      $group->{$state_id}->for_each ('activate');
+      $group->activate();
       }
     else
       {
-      $group->{$state_id}->for_each ('deactivate');
+      $group->deactivate();
+      # or use this: $group->{$state_id}->for_each ('deactivate');
       }
     }
   my $rect = $self->{rectangles}->[0];

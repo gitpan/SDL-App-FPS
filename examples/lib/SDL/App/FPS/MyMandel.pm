@@ -7,11 +7,13 @@ package SDL::App::FPS::MyMandel;
 
 use strict;
 
-use SDL::App::FPS;
-use SDL::Event;
-use SDL::App::FPS::EventHandler qw/
-  LEFTMOUSEBUTTON RIGHTMOUSEBUTTON MIDDLEMOUSEBUTTON
+use SDL::App::FPS qw/
+  BUTTON_MOUSE_LEFT 
+  BUTTON_MOUSE_MIDDLE
+  BUTTON_MOUSE_RIGHT 
   /;
+use SDL::Event;
+#use SDL::App::FPS::EventHandler;
 
 use vars qw/@ISA/;
 @ISA = qw/SDL::App::FPS/;
@@ -74,7 +76,7 @@ sub _mandel_recursive
          $cache->[$self->{width}-1]->[$y] =
           $self->_mandel_point($self->{width}-1,$y) ); 
         }
-      $self->{done} = 0;	# divide next
+      #$self->{done} = 0;	# divide next
       $self->{state} = 2;
       push @{$self->{stack}}, [ 0, 0, $self->{width}-1, $self->{height}-1, 0 ];
       return;
@@ -87,121 +89,102 @@ sub _mandel_recursive
   RECTANGLE:
    while (@{$self->{stack}} > 0)
     {
+    return if ($self->app()->ticks() - $now > 150);
+    # access current rectangle
     print "\rRectangles still todo: ",scalar @{$self->{stack}},"    ";
-    if ($self->{done} == 0)
-      {
 
-      # take current from stack 
-      my ($xl,$yl,$xr,$yr,$level) = @{ shift @{$self->{stack}} };
-      #print "Now at level $level, $xl, $yl => $xr, $yr\n";
-      my $w = ($xr-$xl);
-      my $h = ($yr-$yl);
-    
-      # check that the rectangle has all the same border color around
-      # if yes, fill it and be done with it
-      my $border = $cache->[$xl]->[$yl];
-      my $same = 0;
-      for my $x ($xl .. $xr)
+    # take current from stack 
+    my ($xl,$yl,$xr,$yr,$level) = @{ shift @{$self->{stack}} };
+    #print "Now at level $level, $xl, $yl => $xr, $yr\n";
+    my $w = ($xr-$xl);
+    my $h = ($yr-$yl);
+   
+    # check that the rectangle has all the same border color around
+    # if yes, fill it and be done with it
+    my $border = $cache->[$xl]->[$yl];
+    my $same = 0;
+    for my $x ($xl .. $xr)
+      {
+      $same++, last if $cache->[$x]->[$yl] != $border;
+      $same++, last if $cache->[$x]->[$yr] != $border;
+      }
+    if ($same == 0)
+      {
+      # hm, upper/lower borders were the same, so check left/right
+      for my $y ($yl+1 .. $yr-1)
         {
-        $same++, last if $cache->[$x]->[$yl] != $border;
-        $same++, last if $cache->[$x]->[$yr] != $border;
+        $same++, last if $cache->[$xl]->[$y] != $border;
+        $same++, last if $cache->[$xr]->[$y] != $border;
         }
+      # all the same
       if ($same == 0)
         {
-        # hm, upper/lower borders were the same, so check left/right
-        for my $y ($yl+1 .. $yr-1)
+        # skip blacks
+        if ($border != 0)
           {
-          $same++, last if $cache->[$xl]->[$y] != $border;
-          $same++, last if $cache->[$xr]->[$y] != $border;
+          # color it and stop dividing it
+          my $c = new SDL::Color (
+             -r => $border & 0xff,
+             -g => $border & 0xff,
+             -b => (128 + $border) & 0xff);
+          $rect->x($xl+1);
+          $rect->y($yl+1);
+          $rect->width($w-1);
+          $rect->height($h-1);
+          $self->app()->fill($rect,$c);
           }
-        # all the same
-        if ($same == 0)
-          {
-          # skip blacks
-          if ($border != 0)
-            {
-            # color it and stop dividing it
-            my $c = new SDL::Color (
-               -r => $border & 0xff,
-               -g => $border & 0xff,
-               -b => (128 + $border) & 0xff);
-            $rect->x($xl+1);
-            $rect->y($yl+1);
-            $rect->width($w-1);
-            $rect->height($h-1);
-            $self->app()->fill($rect,$c);
-            }
-          next RECTANGLE;			# done with that
-          }
+        next RECTANGLE;			# done with that
         }
-      # nope, border did not have the same colors, so "do" rectangle 
-      # if to small, compute it iteratively
-      if (($w < 6) || ($h < 6))
-        {
-        #print "too small $xl, $yl => $xr, $yr\n";
-        for (my $x = $xl+1; $x < $xr; $x++)
-          {
-          for (my $y = $yl+1; $y < $yr-1; $y++)
-            {
-            $self->_mandel_draw_point($x,$y, $self->_mandel_point($x,$y) );
-            }
-          }
-        }
-      else
-        {
-        # accoring to level (odd/even) divide it horizontal or vertically
-        if (($level & 1) == 0)
-          {
-          # store the current line we do
-          $self->{sy} = $yl;
-          $self->{sy2} = $yr; 
-          $self->{sx} = int($xl+$w/2);
-          # divide vertically, and put both up the stack
-          push @{$self->{stack}}, [$xl,$yl,$self->{sx},$yr,$level+1];
-          push @{$self->{stack}}, [$self->{sx},$yl,$xr,$yr,$level+1];
-          }
-        else
-          {
-          # store the current line we do
-          $self->{sy} = int($yl+$h/2);
-          $self->{sx} = $xl; 
-          $self->{sx2} = $xr; 
-          # divide hoizontal, and put both up the stack
-          push @{$self->{stack}}, [$xl,$yl,$xr,$self->{sy},$level+1];
-          push @{$self->{stack}}, [$xl,$self->{sy},$xr,$yr,$level+1];
-          }
-        }
-      $self->{done} = 1;		# flag that we already divided 
       }
-    last if scalar @{ $self->{stack} } == 0;		# all done ?
-    # we divided, and have still to do the line between the halves
-    # access current rectangle
-    my ($xl,$yl,$xr,$yr,$level) = @{ $self->{stack}->[-1] };
-    if (($level & 1) != 0)
+    # nope, border did not have the same colors, so "do" rectangle 
+    # if to small, compute it iteratively
+    if (($w < 6) || ($h < 6))
       {
+      for (my $x = $xl+1; $x < $xr; $x++)
+        {
+        for (my $y = $yl+1; $y < $yr; $y++)
+          {
+          $self->_mandel_draw_point($x,$y, $self->_mandel_point($x,$y) );
+          }
+        }
+      next RECTANGLE;			# done with that
+      }
+      
+    # according to level (odd/even) divide it horizontal or vertically
+    if (($level & 1) == 0)
+      {
+      # store the current line we do
+      $self->{sx} = int($xl+$w/2);
+      # divide vertically, and put both up the stack
+      push @{$self->{stack}}, [$xl,$yl,$self->{sx},$yr,$level+1];
+      push @{$self->{stack}}, [$self->{sx},$yl,$xr,$yr,$level+1];
+        
+      # we divided, and have still to do the line between the halves
       my $x = $self->{sx};
-      $self->{sy}++;
+      my $y = $yl+1;
       do 
         {
-        $self->_mandel_draw_point($x,$self->{sy},
-         $cache->[$x]->[$self->{sy}] =
-          $self->_mandel_point($x,$self->{sy}) );
-        } while ($self->{sy}++ < $self->{sy2});
-      $self->{done} = 0;		# next comes divide
+        $self->_mandel_draw_point($x,$y, $cache->[$x]->[$y] =
+           $self->_mandel_point($x,$y) );
+        } while (++$y < $yr);
       }
     else
       {
+      # store the current line we do
+      $self->{sy} = int($yl+$h/2);
+      # divide hoizontal, and put both up the stack
+      push @{$self->{stack}}, [$xl,$yl,$xr,$self->{sy},$level+1];
+      push @{$self->{stack}}, [$xl,$self->{sy},$xr,$yr,$level+1];
+
+      # we divided, and have still to do the line between the halves
       my $y = $self->{sy};
-      $self->{sx}++;
+      my $x = $xl+1;
       do 
         {
-        $self->_mandel_draw_point($self->{sx}, $y,
-         $cache->[$self->{sx}]->[$y] =
-          $self->_mandel_point($self->{sx},$y) );
-        } while ($self->{sx}++ < $self->{sx2});
-      $self->{done} = 0;		# next comes divide
+        $self->_mandel_draw_point($x, $y, $cache->[$x]->[$y] =
+          $self->_mandel_point($x,$y) );
+        } while (++$x < $xr);
       }
-    return if ($self->app()->ticks() - $now > 150);
     }
   print " (points drawn $self->{points})\n";
   print "Took ",int(($self->app()->ticks - $self->{start}) / 10)/100,
@@ -219,25 +202,16 @@ sub _mandel_draw_point
   my $c = new SDL::Color (
     -r => $color & 0xff, -g => $color & 0xff, -b => (128 + $color) & 0xff);
 
-  # XXX: Does not work
-  #my $r = $self->{rect};
-  #$self->{rect}->x($x);
-  #$self->{rect}->y($y);
-  #$self->{app}->fill($self->{rect},$c);
-
-  # XXX: wrong colors and crashes if bpp==32: 
-  # $self->{app}->pixel($x,$y,$c);
-   
-  # XXX does also not work and crash 
+  # fastest
   #my $r = $color & 0xff; my $g = $color & 0xff; my $b = (128 + $color) & 0xff;
-  #$self->{app}->pixel($x,$y, (int($r) << 16) + (int($g) << 8) + int($b));
-
-  # XXX does also not work:
-  #$self->{app}->pixel($x,$y, $c->pixel());
-
-  # works, but slow
-  my $r = SDL::Rect->new( -x => $x, -y => $y, -width => 1, -height => 1);
-  $self->{app}->fill($r,$c);
+  #SDL::SurfaceSetPixel($self->{app}->{-surface},$x,$y,$r,$g,$b);
+   
+  # works, but slower
+  #my $r = SDL::Rect->new( -x => $x, -y => $y, -width => 1, -height => 1);
+  #$self->{app}->fill($r,$c);
+  
+  # works faster
+  $self->{app}->pixel($x,$y,$c);
   }
 
 sub _mandel_iterative
@@ -274,7 +248,8 @@ sub _mandel_iterative
            -g => $color & 0xff,
            -b => (128 + $color) & 0xff);
           }
-        $app->fill($r,$c);
+        $self->{app}->pixel($x,$y,$c);
+        #$app->fill($r,$c);
         $lastcolor = $color;
         }
       return if ($self->app()->ticks() - $now > 150);
@@ -311,7 +286,7 @@ sub _mandel_point
     $za = $za1;
     return $iter if $za * $za + $zb * $zb > 5;
     }
-  return 0;
+  0;
   }
 
 sub _mandel_setup
@@ -334,6 +309,7 @@ sub _mandel_setup
   $self->{done} = 0;
   $self->{stack} = [];
   $self->{cache} = [ ];
+  $self->{points} = 0;
   $self->{rect} = SDL::Rect->new( -x => 0, -y => 0, -width => 1, -height => 1);
   for my $i (0..$self->{width})
     {
@@ -364,6 +340,14 @@ sub _update
   $self->app()->update($rect);
   }
 
+sub resize_handler
+  {
+  my $self = shift;
+
+  $self->{width} = $self->width();
+  $self->{height} = $self->height();
+  }
+
 sub post_init_handler
   {
   my $self = shift;
@@ -372,7 +356,8 @@ sub post_init_handler
 
   $SDL::DEBUG = 0;  			# disable debug, it slows us down
   $self->_mandel_setup();
-  $self->{method} = \&_mandel_iterative;
+  #$self->{method} = \&_mandel_iterative;
+  $self->{method} = \&_mandel_recursive;
 
   $self->{app} = $self->app();
 
@@ -380,28 +365,21 @@ sub post_init_handler
   # state 1 => in calc
   # state 2 => done
 
-  # set up the event handlers
-
-  # create a group for events that are active in state 1, one for state 2
-  # and one for event handlers that are always active (like QUIT)
-  for my $state (1..2)
-    {
-    $self->{demo}->{group}->{$state} = $self->add_group();
-    }
   $self->{demo}->{group_all} = $self->add_group();
+
+  # set up the default event handlers
+  $self->watch_event (
+    quit => SDLK_q, fullscreen => SDLK_f, freeze => SDLK_SPACE,
+   );
 
   # setup the event handlers that are always active
   my $group = $self->{demo}->{group_all};
-
   $group->add(
-    $self->add_event_handler (SDL_KEYDOWN, SDLK_q, 
-     sub { my $self = shift; $self->quit(); }),
-  
-    $self->add_event_handler (SDL_KEYDOWN, SDLK_f, 
-     sub { my $self = shift; $self->fullscreen(); }),
-    
     $self->add_event_handler (SDL_KEYDOWN, SDLK_s, 
-     sub { my $self = shift; $self->_mandel_setup(); }),
+     sub { my $self = shift; $self->_mandel_setup(); $self->_mandel_reset(); }),
+    
+    $self->add_event_handler (SDL_VIDEORESIZE, 0, 
+     sub { my $self = shift; $self->_mandel_setup(); $self->_mandel_reset(); }),
 
     $self->add_event_handler (SDL_KEYDOWN, SDLK_1, 
      sub {
@@ -426,20 +404,8 @@ sub post_init_handler
     $self->add_event_handler (SDL_MOUSEBUTTONDOWN, LEFTMOUSEBUTTON, 
      \&_mandel_zoom, 5),
     $self->add_event_handler (SDL_MOUSEBUTTONDOWN, RIGHTMOUSEBUTTON, 
-     \&_mandel_zoom, 1/5),
+     \&_mandel_zoom, 1/2),
 
-    $self->add_event_handler (SDL_KEYDOWN, SDLK_SPACE, 
-     sub {
-       my $self = shift;
-      if ($self->time_is_frozen())
-        {
-        $self->thaw_time();
-        }
-      else
-        {
-        $self->freeze_time();
-        }
-      }),
     );
   }
        
@@ -453,6 +419,7 @@ sub _mandel_reset
   $self->{done} = 0;
   $self->{stack} = [];
   $self->{cache} = [ ];
+  $self->{points} = 0;
   my $rect = SDL::Rect->new(
    -width => $self->{width}, -height => $self->{height});
   $self->app()->fill($rect,$self->{black});
@@ -477,12 +444,12 @@ sub _mandel_zoom
   if ($factor > 1)
     {
     # zooming in, so calculate a bit further
-    $self->{max_iter} += 100;
+    $self->{max_iter} += 150;
     }
   else
     {
     # zooming out, so step back
-    $self->{max_iter} -= 100;
+    $self->{max_iter} -= 150;
     }
   $factor *= 2;
   $xs = ($self->{x2} - $self->{x1});

@@ -8,37 +8,21 @@ package SDL::App::FPS::EventHandler;
 use strict;
 
 use Exporter;
+use SDL::App::FPS::Thingy;
 use vars qw/@ISA $VERSION @EXPORT_OK/;
-@ISA = qw/Exporter/;
-
-@EXPORT_OK = qw/LEFTMOUSEBUTTON RIGHTMOUSEBUTTON MIDDLEMOUSEBUTTON/;
-
-sub LEFTMOUSEBUTTON () { 1; }
-sub RIGHTMOUSEBUTTON () { 3; }
-sub MIDDLEMOUSEBUTTON () { 2; }
+@ISA = qw/SDL::App::FPS::Thingy Exporter/;
 
 use SDL::Event;
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
+sub _init
   {
-  my $id = 1;
-  sub ID { return $id++;}
-  }
-
-sub new
-  {
-  # create a new instance of SDL::App::FPS::EventHandler
-  my $class = shift;
-  my $self = {}; bless $self, $class;
-
-  $self->{id} = ID();
+  my $self = shift;
 
   $self->{type} = shift;			
   $self->{kind} = shift;			
   $self->{callback} = shift;			
-  $self->{active} = 1;
-  $self->{self} = shift;
   
   $self->{args} = [ @_ ];
 
@@ -55,29 +39,22 @@ sub check
   my $type = $event->type();  
   return unless $type == $self->{type};
 
-  if ($type != SDL_MOUSEMOTION)
+  if ($type == SDL_KEYDOWN || $type == SDL_KEYUP)
     {
-    my $kind;
-    if ($type == SDL_KEYDOWN || $type == SDL_KEYUP)
-      {
-      $kind = $event->key_sym();
-      } 
-    if ($type == SDL_MOUSEBUTTONUP || $type == SDL_MOUSEBUTTONDOWN)
-      {
-      $kind = $event->button();
-      } 
+    my $kind = $event->key_sym();
     return unless $kind == $self->{kind};
+    }
+  elsif ($type == SDL_MOUSEBUTTONUP || $type == SDL_MOUSEBUTTONDOWN)
+    {
+    my $kind = $event->button();
+    # SDL uses 1,2,3, we use 1,2,4 to add them together for Buttons
+    $kind = 4 if $kind == 3;
+    # this enables to watch for more than one button with one event:
+    return unless ($self->{kind} & $kind) != 0;
     }
   
   # event happened, so call callback
-  &{$self->{callback}}($self->{self},$self,$event,@{$self->{args}});
-  }
-
-sub group
-  {
-  # return the group this eventhandler belongs to or undef
-  my $self = shift;
-  $self->{group};
+  &{$self->{callback}}($self->{app},$self,$event,@{$self->{args}});
   }
 
 sub rebind
@@ -86,27 +63,8 @@ sub rebind
 
   $self->{type} = shift;
   $self->{kind} = shift;
-  }
-
-sub activate
-  {
-  my ($self) = shift;
-
-  $self->{active} = 1;
-  }
-
-sub deactivate
-  {
-  my ($self) = shift;
-
-  $self->{active} = 0;
-  }
-
-sub is_active
-  {
-  my ($self) = shift;
-
-  $self->{active};
+  $self->{app}->_rebound_event_handler($self);
+  $self; 
   }
 
 sub type
@@ -123,13 +81,6 @@ sub kind
   $self->{kind};
   }
 
-sub id
-  {
-  # return event handler id
-  my $self = shift;
-  $self->{id};
-  }
-
 1;
 
 __END__
@@ -142,25 +93,17 @@ SDL::App::FPS::EventHandler - a event handler class for SDL::App::FPS
 
 =head1 SYNOPSIS
 
-	my $handler = SDL::App::FPS::EventHandler->new(
+	my $handler = SDL::App::FPS::EventHandler->new( $app,
 		SDL_KEYDOWN,
 		SDLK_SPACE,
 		sub { my $self = shift; $self->pause(); },
 	};
 
-	my $handler2 = SDL::App::FPS::EventHandler->new(
+	my $handler2 = SDL::App::FPS::EventHandler->new( $app,
 		SDL_MOUSEBUTTONDOWN,
 		LEFTMOUSEBUTTON,
 		sub { my $self = shift; $self->time_warp(2,2000); },
 	};
-
-=head1 EXPORTS
-
-Three symbols on request, namely:
-
-	LEFTMOUSEBUTTON
-	RIGHTMOUSEBUTTON
-	MIDDLEMOUSEBUTTON
 
 =head1 DESCRIPTION
 
@@ -188,10 +131,10 @@ SDL::Event that caused the handler to be activated.
 =item new()
 
 	my $handler = SDL::App::FPS::EventHandler->new(
+		$app,
 		$type,
 		$kind,
 		$callback,
-		$app
 	);
 
 Creates a new event handler to watch out for $type events (SDL_KEYDOWN,

@@ -15,7 +15,7 @@ BEGIN
 
 use SDL::App::FPS::MyMandel;
 
-my $options = { width => 640, height => 480, max_fps => 40 };
+my $options = { width => 640, height => 480, max_fps => 20 };
 
 print "SDL Mandelbrot (C) v0.02 2002,2003 by Tels <http://Bloodgate.com/>\n\n";
 

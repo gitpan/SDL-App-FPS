@@ -7,11 +7,13 @@ package SDL::App::FPS::Empty;
 
 use strict;
 
-use SDL::App::FPS;
-use SDL::Event;
-use SDL::App::FPS::EventHandler qw/
-  LEFTMOUSEBUTTON RIGHTMOUSEBUTTON MIDDLEMOUSEBUTTON
+use SDL::App::FPS qw/
+  BUTTON_MOUSE_LEFT
+  BUTTON_MOUSE_MIDDLE
+  BUTTON_MOUSE_RIGHT
   /;
+use SDL::Event;
+#use SDL::App::FPS::EventHandler;
 
 use vars qw/@ISA/;
 @ISA = qw/SDL::App::FPS/;
@@ -29,24 +31,11 @@ sub draw_frame
 sub post_init_handler
   {
   my $self = shift;
- 
+
   # set up the event handlers
-  $self->add_event_handler (SDL_KEYDOWN, SDLK_q, 
-   sub { my $self = shift; $self->quit(); });
-  $self->add_event_handler (SDL_KEYDOWN, SDLK_f, 
-   sub { my $self = shift; $self->fullscreen(); });
-  $self->add_event_handler (SDL_KEYDOWN, SDLK_SPACE, 
-   sub {
-     my $self = shift;
-    if ($self->time_is_frozen())
-      {
-      $self->thaw_time();
-      }
-    else
-      {
-      $self->freeze_time();
-      }
-    });
+  $self->watch_event (
+    quit => SDLK_q, fullscreen => SDLK_f, freeze => SDLK_SPACE,
+   ); 
   }
 
 1;

@@ -1,5 +1,6 @@
 
-# Group - a container class for SDL::App::FPS timer and eventhandlers
+# Group - a container class for SDL::App::FPS Thingies like timers, buttons,
+# and eventhandlers
 
 package SDL::App::FPS::Group;
 
@@ -8,29 +9,17 @@ package SDL::App::FPS::Group;
 use strict;
 
 use Exporter;
+use SDL::App::FPS::Thingy;
 use vars qw/@ISA $VERSION/;
-@ISA = qw/Exporter/;
+@ISA = qw/SDL::App::FPS::Thingy Exporter/;
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
+sub _init
   {
-  my $id = 1;
-  sub ID { return $id++;}
-  }
-
-sub new
-  {
-  # create a new instance of SDL::App::FPS::Group
-  my $class = shift;
-  my $self = {}; bless $self, $class;
-
-  $self->{id} = ID();
+  my $self = shift;
 
   $self->{members} = {};
-
-  my $args = $_[0];
-  if (@_ > 0) { $args = { @_ }; }
-  $self->{app} = $args->{app};
 
   $self;
   }
@@ -98,11 +87,26 @@ sub del ($$)
   delete $self->{members}->{$id};
   }
 
-sub id
+sub activate
   {
-  # return group id
   my $self = shift;
-  $self->{id};
+
+  foreach my $id (keys %{$self->{members}})
+    {
+    $self->{members}->{$id}->activate();
+    }
+  $self;
+  }
+
+sub deactivate
+  {
+  my $self = shift;
+  
+  foreach my $id (keys %{$self->{members}})
+    {
+    $self->{members}->{$id}->deactivate();
+    }
+  $self;
   }
 
 1;
@@ -135,7 +139,7 @@ SDL::App::FPS::Group - a container class for SDL::App::FPS
 =head1 DESCRIPTION
 
 This package provides a container class, which is used to store timers,
-event handlers and other things.
+event handlers, buttons and other things.
 
 It is used by SDL::App::FPS and you need not to use it directly for timer
 and event handlers. However, it may be usefull for other things.
@@ -195,7 +199,7 @@ Returns the ID of the group itself.
 
 Given an object ID, returns the object or undef.
 
-=item member()
+=item members()
 
 	$count = $group->members();
 
@@ -207,6 +211,18 @@ Returns the number of members in this group.
 
 For each of the members in this group call their method C<$methodname> with
 the C<@arguments>.
+
+=item activate()
+
+	$group->activate();
+
+Activate each member of the group by calling it's activate() method.
+
+=item deactivate()
+
+	$group->deactivate();
+
+Deactivate each member of the group by calling it's deactivate() method.
 
 =back
 

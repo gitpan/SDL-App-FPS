@@ -15,14 +15,18 @@ use SDL::Event;
 use SDL::App::FPS::Timer;
 use SDL::App::FPS::EventHandler;
 use SDL::App::FPS::Group;
+use SDL::App::FPS::Button
+ qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE/;
 
 require DynaLoader;
 require Exporter;
 
-use vars qw/@ISA $VERSION/;
+use vars qw/@ISA $VERSION @EXPORT_OK/;
 @ISA = qw/Exporter DynaLoader/;
 
-$VERSION = '0.10';
+@EXPORT_OK = qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE/;
+
+$VERSION = '0.11';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -36,7 +40,7 @@ sub new
 
   $self->_init(@_);			# parse options
   $self->pre_init_handler();
-  $self->create_window();
+  $self->_create_window();
   
   my $app = $self->{_app};
   $app->{now} = SDL::GetTicks();
@@ -77,11 +81,14 @@ sub _init
     height => 600,
     depth => 32,
     fullscreen => 0,
+    resizeable => 1,
     max_fps => 60,
     cap_fps => 1,
     time_warp => 1,
     };
-  foreach my $key (qw/width height depth fullscreen max_fps cap_fps time_warp/) 
+  foreach my $key (qw/
+     width height depth fullscreen max_fps cap_fps time_warp resizeable
+    /) 
     {
     $opt->{$key} = $def->{$key} unless exists $opt->{$key};
     }
@@ -118,8 +125,13 @@ sub _init
   $app->{timers} = {};				# none yet
   $app->{event_handler} = {};			# none yet
 
-  $app->{next_timer_check} = 0;		# disable (always check)
-  $app->{quit} = 0;				# don't let handle_events quit
+  $app->{next_timer_check} = 0;			# disable (always check)
+  $app->{quit} = 0;				# no quit yet
+
+  if ($opt->{resizeable})
+    {
+    $self->add_event_handler( SDL_VIDEORESIZE, 0, \&_resized);
+    }
   $self;
   }
 
@@ -146,6 +158,19 @@ sub option
     }
   return undef unless exists $opt->{$key};
   $opt->{$key};
+  }
+
+sub _resized
+  {
+  # called when the app was resized
+  my ($self,$handler,$event) = @_;
+
+  my $app = $self->{_app};
+  $app->{width} = SDL::ResizeEventW($event->{-event});
+  $app->{height} = SDL::ResizeEventH($event->{-event});
+
+  $app->{app}->resize($app->{width},$app->{height});
+  $self->resize_handler();
   }
 
 sub width
@@ -206,13 +231,13 @@ sub fullscreen
   $app->{in_fullscreen};
   }
 
-sub create_window
+sub _create_window
   {
   my $self = shift;
 
   my $app = $self->{_app};
   my @opt = ();
-  foreach my $k (qw/width height depth/)
+  foreach my $k (qw/width height depth resizeable/)
     {
     push @opt, "-$k", $app->{options}->{$k};
     }
@@ -430,7 +455,7 @@ sub lastframe_time
   $self->{_app}->{lastframe_time};
   }
 
-sub next_frame
+sub _next_frame
   {
   my $self = shift;
   
@@ -481,7 +506,7 @@ sub next_frame
   $app->{lastframe_time} = $app->{current_time};
   }  
 
-sub handle_events
+sub _handle_events
   {
   # handle all events (actually, only handles SDL_QUIT event=, return true if
   # SDL_QUIT occured, otherwise false
@@ -498,6 +523,8 @@ sub handle_events
     # TODO: group event handlers on type, and let event only be checked
     # by the appropriate handlers for speed
 
+    my $type = $event->type();
+
     # hack for now: find all active handlers, and check event only with
     # these
     my $handler = $app->{event_handler};
@@ -510,8 +537,24 @@ sub handle_events
       {
       $h->check($event);
       }
+
+    next if $type != SDL_MOUSEBUTTONDOWN && $type != SDL_MOUSEBUTTONUP &&
+            $type != SDL_MOUSEMOTION;
+
+    # for all active buttons, do the same
+    my $buttons = $app->{buttons};
+    @active = ();
+    foreach my $id (keys %$buttons)
+      {
+      push @active, $buttons->{$id} if $buttons->{$id}->is_active();
+      }
+    foreach my $b (@active)
+      {
+      $b->check($event);
+      }
+
     }
-  $done += $app->{quit};	# if an event handler set it, terminate
+  $done += $app->{quit};	# terminate if an event handler/button set it
   }
 
 sub quit
@@ -524,14 +567,14 @@ sub quit
 
 sub pause
   {
-  # can be called to let the application to wait for the next event
+  # can be called to let the application to wait for the next event or a
+  # specific event type (even a list)
   my $self = shift;
 
   my $app = $self->{_app};
   if (@_ == 0)
     {
     $app->{event}->wait();
-    $app->handle_event($app->{event});	# give handler a chance
     }
   else
     {
@@ -545,11 +588,7 @@ sub pause
         }
       foreach my $t (@_)
         {
-        if ($t == $type)
-          {
-          $self->handle_event($app->{event});	# give handler a chance
-          return;
-          }
+        return if $t == $type;
         }
       }
     }
@@ -560,28 +599,55 @@ sub main_loop
   my $self = shift;
 
   # TODO:
-  # don't call handle_events() when there are no events? Does this matter?
+  # don't call _handle_events() when there are no events? Does this matter?
   my $app = $self->{_app};
-  while (!$app->{quit} && $self->handle_events() == 0)
+  while (!$app->{quit} && $self->_handle_events() == 0)
     {
     if (scalar keys %{$app->{timers}} > 0)			# no timers?
       {
       if ($app->{time_warp} > 0)
         {
-        $self->expire_timers() 
+        $self->_expire_timers() 
          if (($app->{next_timer_check} == 0) ||
             ($app->{current_time} >= $app->{next_timer_check}));
         }
       else
         {
-        $self->expire_timers() 
+        $self->_expire_timers() 
          if (($app->{next_timer_check} == 0) ||
            ($app->{current_time} <= $app->{next_timer_check}));
        }
       }
-    $self->next_frame();		# update the screen and fps monitor
+    $self->_next_frame();		# update the screen and fps monitor
     }
   $self->quit_handler();
+  }
+
+##############################################################################
+# button stuff
+
+sub add_button
+  {
+  # add a button to the list of buttons
+  my $self = shift;
+
+  my $app = $self->{_app};
+  my $button = SDL::App::FPS::Button->new($self,@_);
+
+  # remember it
+  $app->{buttons}->{$button->{id}} = $button;
+  $button;
+  }
+
+sub del_button
+  {
+  # delete a buttom with a specific id
+  my ($self,$id) = @_;
+
+  $id = $id->{id} if ref($id) eq 'SDL::App::FPS::Button';
+
+  my $app = $self->{_app};
+  delete $app->{buttons}->{$id};
   }
 
 ##############################################################################
@@ -597,20 +663,19 @@ sub add_timer
   my ($time, $count, $delay, $rand, $callback, @args) = @_;
 
   my $app = $self->{_app};
-  my $timer = SDL::App::FPS::Timer->new( 
-    $time, $count, $delay, $rand, $app->{current_time}, $callback,
-    $self, @args);
+  my $timer = SDL::App::FPS::Timer->new(
+    $self, $time, $count, $delay, $rand, $app->{current_time}, $callback,
+    @args);
   return undef if $timer->count() == 0;		# timer fired once, and expired
 
   # otherwise remember it
   $app->{timers}->{$timer->{id}} = $timer;
   $app->{next_timer_check} = 0;			# disable (always check)
   $app->{timer_modified} = 1;
-  # return it's id
-  $timer->{id};
+  $timer;
   }
 
-sub expire_timers
+sub _expire_timers
   {
   # check all timers for whether they have expired (need to fire) or not
   my $self = shift;
@@ -685,7 +750,7 @@ sub add_event_handler
   my ($self,$type,$kind,$callback,@args) = @_;
 
   my $handler =
-    SDL::App::FPS::EventHandler->new($type,$kind,$callback,$self,@args);
+    SDL::App::FPS::EventHandler->new($self,$type,$kind,$callback,@args);
 
   $self->{_app}->{event_handler}->{$handler->{id}} = $handler;
   }
@@ -697,6 +762,14 @@ sub del_event_handler
   delete $self->{_app}->{event_handler}->{$handler->{id}};
   }
 
+sub _rebound_event_handler
+  {
+  # When an event handler's rebind() method is called, it will notify the
+  # application of this change via _rebound_event_handler()
+  my ($self,$handler) = @_;
+  
+  }
+
 ##############################################################################
 # create a new group
 
@@ -704,7 +777,7 @@ sub add_group
   {
   my ($self) = @_;
 
-  SDL::App::FPS::Group->new( app => $self);
+  SDL::App::FPS::Group->new($self);
   }
 
 ##############################################################################
@@ -712,8 +785,7 @@ sub add_group
 
 sub draw_frame
   {
-  # draw one frame, usually overrriden in a subclass. If necc., this might
-  # call $self->handle_event().
+  # draw one frame, usually overrriden in a subclass.
   my ($self,$current_time,$lastframe_time,$current_fps) = @_;
  
   $self; 
@@ -732,6 +804,95 @@ sub pre_init_handler
 sub quit_handler
   {
   $_[0];
+  }
+
+sub resize_handler
+  {
+  $_[0];
+  }
+
+##############################################################################
+# convenience methods
+
+sub watch_event
+  {
+  # adds some often-used event handlers
+  my $self = shift;
+  
+  my $args = $_[0];
+  if (ref($args) ne 'HASH')
+    {
+    $args = { @_ };			# make hash ref from array
+    }
+
+  foreach my $name (keys %{$args})
+    {
+    if ($name !~ /^(pause|freeze|quit|fullscreen)$/)
+      {
+      require Carp; Carp::croak ("Cannot watch unknown event $name");
+      }
+    my $type = SDL_KEYDOWN;
+    my $key = $args->{$name};
+    if ($key =~ /^[LMR]MB$/)
+      {
+      $type = SDL_MOUSEBUTTONDOWN;
+      if ($key eq 'LMB')
+	{
+        $key = BUTTON_MOUSE_MIDDLE;
+        }
+      elsif ($key eq 'RMB')
+	{
+        $key = BUTTON_MOUSE_RIGHT;
+        }
+      elsif ($key eq 'MMB')
+	{
+        $key = BUTTON_MOUSE_MIDDLE;
+        }
+      }
+    if ($name eq 'freeze')
+      {
+      $self->add_event_handler ($type, $key,
+       sub {
+         my $self = shift;
+         if ($self->time_is_frozen())
+           {
+           $self->thaw_time();
+           }
+         else
+           {
+         $self->freeze_time();
+         }
+       });
+      }
+    elsif ($name eq 'fullscreen')
+      {
+      $self->add_event_handler ($type, $key, sub { $_[0]->fullscreen(); } );
+      }
+    elsif ($name eq 'quit')
+      {
+      $self->add_event_handler ($type, $key, \&quit);
+      }
+    elsif ($name eq 'pause')
+      {
+      $self->add_event_handler ($type, $key, 
+       sub { 
+        my $self = shift; my ($event,$nkey);
+        do {
+          $event = $self->pause($type);
+          if ($type == SDL_KEYDOWN)
+            {
+            $nkey = $event->key_sym();
+            }
+          else
+	    {
+            $nkey = $event->button();
+            }
+          } while ($nkey != $key);
+        }
+       );
+      }
+    }
+
   }
 
 1;
@@ -772,6 +933,10 @@ Subclass SDL::App::FPS and override some methods:
             {
             my $self = shift; $self->quit();
             } );
+	  # or easier for often-used events
+	  $self->watch_event( fullscreen => SDLK_f, pause => SDLK_p,
+			      quit => SDLK_q,
+		 	    );
 	  }
 
 Then write a small script using SDL::App::MyFPS like this:
@@ -788,6 +953,14 @@ Then write a small script using SDL::App::MyFPS like this:
 	$app->main_loop();
 
 That's all!
+
+=head1 EXPORTS
+
+Three symbols on request, namely:
+
+        BUTTON_MOUSE_LEFT
+        BUTTON_MOUSE_RIGHT
+        BUTTON_MOUSE_MIDDLE
 
 =head1 DESCRIPTION
 
@@ -932,11 +1105,10 @@ an anonymous subroutine. Here is an example:
 
 	my $handler = $app->add_event_handler ( SDL_KEYDOWN, SDLK_SPACE, sub {
 	  my ($self) = shift;
-	  $self->pause();
+	  $self->pause(SDL_KEYDOWN);
 	} );
 
-This would pause the game when the space key (you know, the one also known
-as "any key" or "that longish bar at the bottom") is pressed.
+This would pause the game until any key is pressed.
 
 You can easily reconfigure the event to trigger for a different key like this:
 	
@@ -967,6 +1139,14 @@ from the normal SDL::Timers in that they run in the application clock space,
 e.g. the time warp effects them. So if you application is in slow motion,
 the events triggers by the timers will still happen at the correct time.
 
+=head2 Asyncronous Timers
+
+There are still some things that need a (near) real-time response and can not
+wait for the next frame drawn. For instance when one music piece ends and the
+next needs to be faded in, it would be unfortunate to wait until the next
+frame start, which might come a bit late.
+
+In these cases you can still use the normal SDL timers, of course.
 
 =head1 SUBCLASSING
 
@@ -999,14 +1179,6 @@ The third parameter is the current framerate, averaged. You can use this to
 reduce dynamically the complexity of the scene to achieve a faster FPS if it
 falls below a certain threshold.
 
-=item handle_event()
-
-Responsible for handling a single event. Gets one parameter, C<$event>, the
-SDL::Event object. Check the event type with $event->type() and then take
-the appropriate action.
-
-Should return 1 to quit the application (if necc.), and 0 to keep it running.
-
 =back
 
 The following methods can be overriden if so desired:
@@ -1025,6 +1197,10 @@ Called by L<new()> just after the creating the SDL application and window.
 
 Called by L<main_loop()> just before the application is exiting.
 
+=item resize_handler()
+
+Called automatically whenever the application window size change.
+
 =back
 
 The following methods can be used, but need not be overriden except in very
@@ -1041,13 +1217,16 @@ the frame rate monitoring and the application time-warped clock.
 
 Get's a hash ref with options, the following options are supported:
 
-	width     the width of the application window in pixel
-	height    the width of the application window in pixel
-	depth     the depth of the screen (colorspace) in bits
-	max_fps   maximum number of FPS to do (save CPU cycles)
-	cap_fps   use a better model to cap the FPS to the desired
-		  rate (default), set to 0 to disable - but you don't want
-                  to do this - trust me)
+	width       the width of the application window in pixel
+	height      the width of the application window in pixel
+	depth       the depth of the screen (colorspace) in bits
+	max_fps     maximum number of FPS to do (save CPU cycles)
+	cap_fps     use a better model to cap the FPS to the desired
+		    rate (default), set to 0 to disable - but you don't want
+                    to do this - trust me)
+	resizeable  when true, the application window will be resizable
+		    You should install an event handler to watch for events
+		    of the type SDL_VIDEORESIZE
 
 Please note that to the resulution of the timer the maximum achivable FPS
 with capping is about 200 FPS even with an empty draw routine. Of course,
@@ -1060,6 +1239,37 @@ C<new()> calls L<pre_init_handler()> before creating the SDL application, and
 L<post_init_handler()> afterwards. So you can override thess two for your own
 desires.
 
+=item main_loop()
+
+	$app->main_loop();
+
+The main loop of the application, only returns when an SDL_QUIT event occured,
+or $self->quit() was called.
+
+=item watch_event
+
+	$app->watch_event ( fullscreen => SDLK_f, pause => SDLK_p, 
+			    freeze => SDL_SPACE,
+			  );
+
+C<watch_event> is a convenience method, that let's you add often-used event
+handlers to some default events. The following are supported:
+
+	fullscreen		the given key switches the app between
+				fullscreen and windowed mode
+	quit			this ends the application
+	pause			pause the application until the same key
+				is pressed again. No frames will be drawn
+				in that time and any other event will be
+				ignored
+	freeze			Freeze the time. Frames will still be drawn
+				and events handled, althouhg no timer will
+				expire (since the time does not "flow"). The
+				same key again lets the time flow again.
+
+Instead of SDLK_foo, you can also pass for key one of the B<strings> 'LMB',
+'RMB' or 'MMB' meaning the left, right and middle mouse button.
+
 =item quit()
 
 Set a flag to quit the application at the end of the current frame. Can be
@@ -1069,10 +1279,12 @@ called in L<draw_frame()>, for instance.
 
 	$app->pause();
 	$app->pause(SDL_KEYDOWN);
+	$app->pause(SDL_KEYDOWN,SDL_MOUSEBUTTONDWN,SDL_MOUSEMOVED);
 
-Pauses the application until the next event occurs. Given an optional event
-type (like SDL_KEYDOWN), it will wait until this event happens. All
-other events will be ignored, with the exception of SDL_QUIT.
+Pauses the application until the next event occurs. Given an optional list of
+event types (like SDL_KEYDOWN), it will wait until one event of the given type
+happens. All other events will be ignored, with the exception of SDL_QUIT,
+which will end the pause and terminate the application.
 
 =item fullscreen()
 
@@ -1327,37 +1539,40 @@ is passed to L<draw_frame()>.
 
 =back
 
+=head2 INTERNAL METHODS
+
 The following routines are used internally and automatically, so you need not
 to call them.
 
 =over 2
 
-=item create_window
+=item _create_window
 
 Initialized the SDL subsysten and creates the window.
 
-=item next_frame
+=item _next_frame
 
 Updates the FPS monitoring process, the frame counter, the average frame rate,
 and then calls L<draw_frame()>.
 
-=item handle_events()
+=item _handle_events()
 
 Checks for events and hands all of them to L<event_handler> for user handling.
 The only event it handles directly is SDL_QUIT. Returns 0 for keeping
 the application running, and > 0 for quit.
 
-=item main_loop()
-
-	$app->main_loop();
-
-The main loop of the application, only returns when an SDL_QUIT event occured,
-or $self->quit() was called.
-
-=item expire_timers()
+=item _expire_timers()
 
 Check all the timers for whether they are due ot not and let them fire.
 Removes unnecc. timers from the list.
+
+=item _rebound_event_handler
+
+=item _ramp_time_warp()
+
+sub _resized()
+
+Automatically called whenever our window got resized.
 
 =back
 

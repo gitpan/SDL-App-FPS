@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 37;
+use Test::More tests => 40;
 use strict;
 
 BEGIN
@@ -16,7 +16,7 @@ BEGIN
 can_ok ('SDL::App::MyFPS', qw/ 
   new time_warp frames current_time lastframe_time now
   _init quit option fullscreen
-  main_loop update draw_frame handle_events
+  main_loop update draw_frame _handle_events
   freeze_time thaw_time
   stop_time_warp_ramp
   ramp_time_warp
@@ -30,8 +30,15 @@ can_ok ('SDL::App::MyFPS', qw/
   app
   del_timer timers add_timer get_timer
   add_event_handler del_event_handler
+  add_button del_button
   add_group
+  watch_event
+  _resized 
   in_fullscreen
+  BUTTON_MOUSE_LEFT
+  BUTTON_MOUSE_RIGHT
+  BUTTON_MOUSE_MIDDLE
+  quit_handler resize_handler post_init_handler pre_init_handler
   /);
 
 use SDL::Event;
@@ -53,6 +60,14 @@ $app->add_timer(20, 1, 0, 0, sub { $timer++ } );
 is ($app->width(), 640, 'width 640 pixel');
 is ($app->height(), 480, 'width 480 pixel');
 
+my $button = $app->add_button(1,2,3,4);
+is (scalar keys %{$app->{_app}->{buttons}}, 1, '1 button');
+$app->del_button($button->{id});
+is (scalar keys %{$app->{_app}->{buttons}}, 0, '0 buttons');
+$button = $app->add_button(1,2,3,4);
+$app->del_button($button);
+is (scalar keys %{$app->{_app}->{buttons}}, 0, '0 buttons');
+
 $app->main_loop();
 
 is ($app->{myfps}->{quit_handler},1, 'quit_handler() run once');
@@ -66,7 +81,8 @@ is ($app->time_is_frozen(), '', 'time is not frozen');
 is ($app->time_is_ramping(), '', 'time is not ramping');
 is ($app->timers(), 0, 'no timers running');
 
-is (scalar keys %{$app->{_app}->{event_handler}}, 1, 'one handler');
+is (scalar keys %{$app->{_app}->{event_handler}}, 2, 
+	'one handler plus one for resizeing');
 
 is ($app->in_fullscreen(), 0, 'were in windowed mode');
 is ($app->fullscreen(0), 0, 'already were in windowed mode');
@@ -90,7 +106,7 @@ is ($app->timers(), 2, '2 timer running');
 
 $app->del_timer($timer1);
 is ($app->timers(), 1, '1 left');
-$timer2 = $app->get_timer($timer2);
+$timer2 = $app->get_timer($timer2->id());
 is (ref($timer2), 'SDL::App::FPS::Timer', 'got timer from id');
 $app->del_timer($timer2->{id});
 is ($app->timers(), 0, 'none left');
@@ -100,7 +116,11 @@ is ($app->now() == $app->current_time(), 1, 'current time equals real time');
 
 ##############################################################################
 
-is (keys %$app, 2, 'data all encapsulated');
+is (scalar keys %$app, 2, 'data all encapsulated');
+if (scalar keys %$app != 2)
+  {
+  print '# current keys: ', join(" ", keys %$app),"\n";
+  }
 is (exists $app->{_app}, 1, 'data all encapsulated');
 is (exists $app->{myfps}, 1, 'data all encapsulated');
 

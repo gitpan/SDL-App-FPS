@@ -5,7 +5,6 @@ SDL::App::FPS:
 * stop_time_warp_ramp() is fine, but we also need
   freeze_time_warp_ramp() and unfreeze_time_warp_ramp()
 * inline _ramp_time_warp() into update() for more speed?
-* add a resize_handler() hook ?
 * add a fullscreen_toggled_handler() hook ?
 * code most of the critical stuff in SDL::App::FPS in XS for low-overhead
   (especially necc. for next_frame() and handle_events())
@@ -15,6 +14,8 @@ SDL::App::FPS:
   event current event, too (e.g. when toggling between states by handling
   the same event type with two different handlers)
   + tests for that this works correctly (the event demo app relies on it)
+  + same trick for Buttons
+* elliptic shapes for Button are not properly yet
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

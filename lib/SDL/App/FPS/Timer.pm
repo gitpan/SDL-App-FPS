@@ -9,24 +9,16 @@ package SDL::App::FPS::Timer;
 use strict;
 
 use Exporter;
+use SDL::App::FPS::Thingy;
 use vars qw/@ISA $VERSION/;
-@ISA = qw/Exporter/;
+@ISA = qw/SDL::App::FPS::Thingy Exporter/;
 
 $VERSION = '0.03';
 
+sub _init
   {
-  my $id = 1;
-  sub ID { return $id++;}
-  }
+  my $self = shift;
 
-sub new
-  {
-  # create a new instance of SDL::App::FPS::Timer
-  my $class = shift;
-  my $self = {}; bless $self, $class;
-
-  $self->{id} = ID();
-  $self->{active} = 1;
   # times can be negative, for instance when clock goes backwards!
   $self->{time} = shift;			
   $self->{count} = shift;			# count < 0 => infitite
@@ -44,7 +36,6 @@ sub new
     {
     require Carp; Carp::croak ("Timer needs a coderef as callback!");
     }
-  $self->{self} = shift;			# additional arguments
   $self->{args} = [ @_ ];			# additional arguments
   $self->{due} = 0;				# not yet
   $self->{next_shot} = $self->{start} + $self->{time};
@@ -64,39 +55,11 @@ sub new
   $self;
   }
 
-sub activate
-  {
-  my ($self) = shift;
-
-  $self->{active} = 1;
-  }
-
-sub deactivate
-  {
-  my ($self) = shift;
-
-  $self->{active} = 0;
-  }
-
-sub is_active
-  {
-  my ($self) = shift;
-
-  $self->{active};
-  }
-
 sub next_shot
   {
   # when will next shot be fired?
   my $self = shift;
   $self->{next_shot};
-  }
-
-sub group
-  {
-  # return the group this timer belongs to or undef
-  my $self = shift;
-  $self->{group};
   }
 
 sub fired
@@ -132,7 +95,7 @@ sub _fire
 							# negative delays
   # fire timer now
   &{$self->{code}}( 
-    $self->{self}, $self, $self->{id}, $self->{overshot}, @{$self->{args} });
+    $self->{app}, $self, $self->{id}, $self->{overshot}, @{$self->{args} });
   1;
   }
 
@@ -155,13 +118,6 @@ sub due
     return 0 if $time_warp > 0 || $now > $self->{next_shot};
     }
   $self->_fire($now); 
-  }
-
-sub id
-  {
-  # return timer id
-  my $self = shift;
-  $self->{id};
   }
 
 1;

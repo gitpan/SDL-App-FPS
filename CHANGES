@@ -128,6 +128,47 @@ SDL::App::FPS:
    + zooming in while recursive calc was underway resulted in corruption
    + toggle method: 1 (iterative), 2 (recursive), 3 (recursive with prefill)
 
+2003-01-04 v0.11 Tels - 164 tests
+ SDL::App::FPS::Thingy:
+  * added, made Timer, Group, EventHandler and Button use it as base class
+ SDL::App::FPS::EventHandler:
+  * cater for SDL_VIDEORESIZE events
+  * upon rebind, call $app->_rebound_event_handler()
+  * is now able to watch for 1,2 or 3 different mousebuttons with the same
+    handler (pass BUTTON_MOUSE_LEFT + BUTTON_MOUSE_RIGHT for instance)
+  * removed LEFTMOUSEBUTTON, RIGHTMOUSEBUTTON and MIDDLEMOUSEBUTTON
+ SDL::App::FPS::Button:
+  * added, use Thingy
+  * rectangular, circular or elliptic shapes
+  * watches for mouse in, out, hover, button down/up or click events
+ SDL::App::FPS::Group:
+  * use Thingy
+  * activate()/deactivate() calls activate()/deactivate() of each member
+ SDL::App::FPS:
+ * event_handler() no longer exists, so don't use nor document it
+ * pause() throws away events
+ * internal methods prefixed with '_'
+ * added support for option -resizeable
+   + add event for SDL_VIDEORESIZE and adjusting width/height in _resized()
+ * added _rebound_event_handler()
+ * added BUTTON_MOUSE_LEFT, BUTTON_MOUSE_RIGHT, BUTTON_MOUSE_MIDDLE
+ * added resize_handler() 
+ mandel.pl:
+  * rewrote mandel's recursive algorithmn to be simpler, also fixed a bug that
+     it calculated/draw one pixel too much for every hor/vert. line
+  * fixed the bug in recursive alg. that left 'holes'
+  * use watch_event(), support resizable (restart calc upon resize)
+  * reset point counter when starting new calculation
+  * use recursive method as default
+ demo.pl:
+  * use watch_event(), supports resizable (automatically)
+ empty.pl:
+  * use watch_event(), support resizable (automatically)
+ event.pl:
+  * use watch_event(), support resizable (automatically)
+ button.pl and MyButt.pm:
+  * added a simple click'n'kill game to show SDL::App::FPS::Button usage
+
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

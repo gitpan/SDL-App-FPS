@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 23;
+use Test::More tests => 30;
 use strict;
 
 BEGIN
@@ -14,7 +14,7 @@ BEGIN
   }
 
 can_ok ('SDL::App::FPS::Group', qw/ 
-  member members add del
+  member members add del named
   new _init activate is_active deactivate id clear
   /);
 
@@ -23,13 +23,19 @@ package DummyThing;
 
 # a dummy package to simulate some object
 
-my $id = 1;
-sub new { bless { id => $id++, }, 'DummyThing'; }
+my $id = 0;
+sub new { $id++; bless { id => $id, name => 'DummyThing #' . $id }, 'DummyThing'; }
 
 my $done = 0;
 sub done
   {
   $done++;
+  }
+
+sub name
+  {
+  my $self = shift;
+  'DummyThing #' . $self->{id};
   }
 
 sub activate
@@ -57,6 +63,9 @@ my $group = SDL::App::FPS::Group->new( 'main' );
 
 is (ref($group), 'SDL::App::FPS::Group', 'group new worked');
 is ($group->id(), 1, 'group id is 1');
+is ($group->name(), 'Group #1', "knows it's name");
+
+is ($group->named('DummyThing #1'), (), "no match");
 
 is ($group->members(), 0, 'group has 0 members');
 
@@ -74,6 +83,19 @@ is (ref($group->member(2)), 'DummyThing', 'group member 2 exist');
 is (ref($group->member(3)), 'DummyThing', 'group member 3 exist');
 is ($group->contains(1), 1, 'group member 1 exist');
 is ($group->contains(2), 1, 'group member 2 exist');
+is ($group->contains(3), 1, 'group member 3 exist');
+
+is ($group->named('DummyThing #1')->name(), 'DummyThing #1', "match");
+is ($group->named('Dummything #1'), undef, "no match");
+
+my $name = qr/dummy/;
+is ($group->named($name), undef, "no match");
+$name = qr/dummy/i;
+is (my @a = $group->named($name), 3, "3 matches");
+
+##############################################################################
+# by_name
+
 is ($group->contains(3), 1, 'group member 3 exist');
 
 # for_each

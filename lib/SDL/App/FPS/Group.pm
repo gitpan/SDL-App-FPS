@@ -56,6 +56,46 @@ sub member ($$)
   return;
   }
 
+sub named
+  {
+  # return a list of names that match the given one, in scalar context
+  # returns the first match
+  # give the name to match as string, and an exact, case-sensitive match
+  # will be searched. For substring matches, or case-insensitive ones give
+  # a quoted regular expression (using qr//)
+  # returns undef if no match was found
+  my ($self,$name) = @_;
+
+  my $m = $self->{members};
+  my @rc;
+  if (ref($name))
+    {
+    # quoted regular expression
+    foreach my $key (keys %$m)
+      {
+      if ($m->{$key}->{name} =~ $name)
+        {
+        return $m->{$key} unless wantarray;
+        push @rc, $m->{$key};
+        }
+      }
+    }
+  else
+    {
+    # string
+    foreach my $key (keys %$m)
+      {
+      if ($m->{$key}->{name} eq $name)
+        {
+        return $m->{$key} unless wantarray;
+        push @rc, $m->{$key};
+        }
+      }
+    }
+  return @rc if wantarray;
+  return;
+  }
+
 sub members ($)
   {
   # returns count of members

@@ -16,6 +16,7 @@ examples/empty.pl
 examples/event.pl
 examples/mandel.pl
 examples/buttons.pl
+examples/opengl.pl
 examples/mouse.pl
 examples/colors.pl
 examples/keycheck.pl
@@ -27,6 +28,7 @@ examples/lib/SDL/App/FPS/MyButt.pm
 examples/lib/SDL/App/FPS/MyMouse.pm
 examples/lib/SDL/App/FPS/MyColors.pm
 examples/lib/SDL/App/FPS/MyKeyCheck.pm
+examples/lib/SDL/App/FPS/MyOpenGL.pm
 Makefile.PL
 FPS.xs
 lib/SDL/App/FPS.pm

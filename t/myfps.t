@@ -42,6 +42,7 @@ can_ok ('SDL::App::MyFPS', qw/
   BUTTON_MOUSE_RIGHT
   BUTTON_MOUSE_MIDDLE
   quit_handler resize_handler post_init_handler pre_init_handler
+  get_clock set_clock clock_to_ticks
   /);
 
 use SDL::Event;

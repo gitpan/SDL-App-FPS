@@ -242,6 +242,13 @@ SDL::App::FPS:
   * corrected bug in timer firing introduced by timer expiring optimization
   * workaround bug in SDL::Event.pm that crashes us when using KMOD_foo
 
+2003-03-02 v0.15 Tels - 265 tests
+  * added example opengl.pl which shows OpenGL usage
+  * FPS.pm: support for "gl" switch
+	    added get_clock(), set_clock() and clock_to_ticks()
+  * Thingy: has field name (w/ default) and accessor method name()
+  * Group: method named(), returning one or more matching members by that name
+            
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

@@ -7,16 +7,20 @@ package SDL::App::FPS::Thingy;
 
 use strict;
 
-use Exporter;
-use vars qw/@ISA $VERSION/;
-@ISA = qw/Exporter/;
+use vars qw/$VERSION/;
 
 $VERSION = '0.02';
+
+##############################################################################
+# protected vars
 
   {
   my $id = 1;
   sub ID { return $id++;}
   }
+
+##############################################################################
+# methods
 
 sub new
   {
@@ -29,6 +33,13 @@ sub new
 
   $self->{active} = 1;
   $self->{group} = undef;
+  
+  $self->{outputs} = {};
+  
+  $self->{name} = $class;
+  $self->{name} =~ s/.*:://;
+  $self->{name} = ucfirst($self->{name});
+  $self->{name} .= ' #' . $self->{id};
   
   $self->_init(@_);
   }
@@ -45,6 +56,17 @@ sub group
   # return the group this thing belongs to or undef
   my $self = shift;
   $self->{group};
+  }
+
+sub name
+  {
+  # (set and) return the name of this thingy
+  my $self = shift;
+  if (defined $_[0])
+    {
+    $self->{name} = shift;
+    }
+  $self->{name};
   }
 
 sub activate
@@ -76,7 +98,7 @@ sub is_active
 
 sub id
   {
-  # return event handler id
+  # return thing id
   my $self = shift;
   $self->{id};
   }
@@ -115,7 +137,8 @@ Exports nothing on default.
 
 =head1 DESCRIPTION
 
-This package provides a base class for "things" in SDL::App::FPS.
+This package provides a base class for "things" in SDL::App::FPS. It should
+not be used on it's own.
 
 =head1 METHODS
 
@@ -148,9 +171,20 @@ Set the thingy to active. Newly created ones are always active.
 
 Set the thingy to inactive. Newly created ones are always active.
 
+Inactive thingies ignore signals or state changes until they become active
+again.
+
 =item id()
 
 Return the thingy's unique id.
+
+=item name()
+
+	print $thingy->name();
+	$thingy->name('new name');
+
+Set and/or return the thingy's name. The default name is the last part of
+the classname, uppercased, preceded by '#' and the thingy's unique id.
 
 =back
 

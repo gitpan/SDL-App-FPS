@@ -14,6 +14,12 @@ SDL::App::FPS:
   objects, because those saves us multiple calls to get the same value 
 * elliptic shapes for Button are not properly yet
 * load() and save() are not fully done yet
+* Thingy: signals SIGNALE_ACTIVATE and SIGNAL_DEACTIVATE
+  (and don't ignore the ACTIVATE signal even when not active)
+* let clock jump directly to a specific time (instead of just ramping time
+  warp up)
+* links with timers need testing, link inverting, and link with specific
+  output/input filters
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

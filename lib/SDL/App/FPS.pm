@@ -28,7 +28,7 @@ use vars qw/@ISA $VERSION @EXPORT_OK/;
 
 @EXPORT_OK = qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE/;
 
-$VERSION = '0.14';
+$VERSION = '0.15';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -50,6 +50,7 @@ sub new
   $app->{start_time} = 0;			# for time_warp
   $app->{current_time} = 0;			# warped clock (current frame)
   $app->{lastframe_time} = 0;			# warped clock (last frame)
+  $app->{clock} = { day => 0, hour => 0, minute => 0, second => 0, ms => 0 };
 
   $self->post_init_handler();
 
@@ -87,9 +88,10 @@ sub _init
     max_fps => 60,
     cap_fps => 1,
     time_warp => 1,
+    gl => 0,
     };
   foreach my $key (qw/
-     width height depth fullscreen max_fps cap_fps time_warp resizeable
+     gl width height depth fullscreen max_fps cap_fps time_warp resizeable
     /) 
     {
     $opt->{$key} = $def->{$key} unless exists $opt->{$key};
@@ -246,7 +248,7 @@ sub _create_window
 
   my $app = $self->{_app};
   my @opt = ();
-  foreach my $k (qw/width height depth resizeable/)
+  foreach my $k (qw/gl width height depth resizeable/)
     {
     push @opt, "-$k", $app->{options}->{$k};
     }
@@ -258,7 +260,10 @@ sub _create_window
   $app->{depth} = $app->{app}->bpp();
   $self;
   }
-	
+
+##############################################################################
+# time and clock functions
+
 sub stop_time_warp_ramp
   {
   # disable time warp ramping when it is in progress (otherwise does nothing)
@@ -390,22 +395,6 @@ sub start_time
   $self->{_app}->{start_time};
   }
 
-sub current_fps
-  {
-  # return current number of frames per second, averaged over the last 1000ms
-  my $self = shift;
-
-  $self->{_app}->{current_fps};
-  }
-
-sub frames
-  {
-  # return number of frames already drawn
-  my $self = shift;
-
-  $self->{_app}->{frames};
-  }
-
 sub now
   {
   # return current time at the start of the frame in ticks, unwarped.
@@ -426,10 +415,68 @@ sub current_time
 
 sub lastframe_time
   {
-  # return time at the start of the last frame. See current_time().
+  # return (warped) time at the start of the last frame. See current_time().
   my $self = shift;
 
   $self->{_app}->{lastframe_time};
+  }
+
+sub get_clock
+  {
+  # return the (warped) current time in days, hours, minutes, seconds and ms
+  my $self = shift;
+
+  my $ct = $self->{_app}->{current_time};
+  my $clock = $self->{_app}->{clock};
+
+  ((int($ct / (24 * 3600000))) + $clock->{day},
+   (int($ct / 3600000) % 24) + $clock->{hour},
+   (int($ct / 60000) % 60) + $clock->{minute},
+   (int($ct / 1000) % 60) + $clock->{second},  
+   $ct % 1000 + $clock->{second});  
+  }
+
+sub set_clock
+  {
+  # set the (warped) current time to equal days, hours, minutes, seconds and ms
+  my ($self,$day,$hour,$minute,$second,$ms) = @_;
+  
+  my $clock = $self->{_app}->{clock};
+
+  $clock->{day} = $day if defined $day;
+  $clock->{hour} = $hour if defined $hour;
+  $clock->{minute} = $minute if defined $minute;
+  $clock->{second} = $second if defined $second;
+  $clock->{ms} = $ms if defined $ms;
+  }
+
+sub clock_to_ticks
+  {
+  # return time given as days, hours, minutes, seconds and ms (as difference
+  # e.g. not related to current time) as tick count.
+  my ($day,$hour,$minute,$second,$ms) = @_;
+  
+  ($ms||0) + ($second||0) * 1000 + ($minute||0) * 60000 +
+  ($hour||0) * 3600000 + 
+  ($day||0) * 24 * 3600000;
+  }
+
+##############################################################################
+
+sub current_fps
+  {
+  # return current number of frames per second, averaged over the last 1000ms
+  my $self = shift;
+
+  $self->{_app}->{current_fps};
+  }
+
+sub frames
+  {
+  # return number of frames already drawn
+  my $self = shift;
+
+  $self->{_app}->{frames};
   }
 
 sub _next_frame
@@ -458,8 +505,9 @@ sub _next_frame
 
 sub _handle_events
   {
-  # handle all events (actually, only handles SDL_QUIT event=, return true if
-  # SDL_QUIT occured, otherwise false
+  # handle all events (actually, only handles SDL_QUIT event, the rest are
+  # handled by the called event handlers), return true if SDL_QUIT occured,
+  # otherwise false)
   my $self = shift;
 
   my $done = 0;
@@ -482,7 +530,8 @@ sub _handle_events
     # them. This is necc. lest some handler activates another handler, which
     # should not checked this time, or deactivates some, which *should* be
     # checked this time. (e.g. (de)activation counts only in the next frame)
-    # check only active ones, but use global hash to access them
+
+    # check only active ones, but use the global hash to access them
     my $handler = $app->{event_handler}->{$type};
     my $handlers = $app->{event_handlers};
     foreach my $h (keys %$handler)
@@ -568,7 +617,7 @@ sub main_loop
         $self->_expire_timers() 
          if (($app->{next_timer_check} == 0) ||
            ($app->{current_time} <= $app->{next_timer_check}));
-       }
+        }
       }
     $self->_next_frame();		# update the screen and fps monitor
     }
@@ -1301,7 +1350,7 @@ The following methods should be overridden to make a usefull application:
 
 =item draw_frame()
 
-Responsible for drawing the current frame. It's first two parameters, the
+Responsible for drawing the current frame. It's first two parameters are the
 time (in ticks) at the start of the current frame, and the time at the
 start of the last frame. These times are warped according to C<time_warp()>,
 see there for an explanation on how this works.
@@ -1330,7 +1379,7 @@ Called by L<main_loop()> just before the application is exiting.
 
 =item resize_handler()
 
-Called automatically whenever the application window size change.
+Called automatically whenever the application window size changed.
 
 =back
 
@@ -1358,9 +1407,10 @@ Get's a hash ref with options, the following options are supported:
 	resizeable  when true, the application window will be resizable
 		    You should install an event handler to watch for events
 		    of the type SDL_VIDEORESIZE
+	gl	    set to 1 to enable OpenGL support
 
-Please note that to the resulution of the timer the maximum achivable FPS
-with capping is about 200 FPS even with an empty draw routine. Of course,
+Please note that, due to the resulution of the timer, the maximum achivable FPS
+with capping is about 200-300 FPS even with an empty draw routine. Of course,
 my machine could do about 50000 FPS; but then it hogs 100% of the CPU. Thus
 the framerate capping might not be accurate and cap the rate at a much lower
 rate than you want. However, only max_fps > 100 is affected, anything below
@@ -1368,7 +1418,7 @@ rate than you want. However, only max_fps > 100 is affected, anything below
 
 C<new()> calls L<pre_init_handler()> before creating the SDL application, and
 L<post_init_handler()> afterwards. So you can override thess two for your own
-desires.
+needs.
 
 =item save
 
@@ -1688,6 +1738,33 @@ only change at the start of each frame.
   
 Return time at the start of the last frame. See current_time(). The same value
 is passed to L<draw_frame()>.
+
+=item get_clock
+
+	($day,$hour,$minute,$second,$ms) = $app->get_clock();
+
+Returns the current time (see L<current_time()>) in a day, hour, minute,
+second and millisecond format. See L<set_clock()> on how to make the current
+time a certain date and time.
+
+=item set_clock
+
+	$app->set_clock($day,$hour,$minute,$second,$ms);
+
+	$app->set_clock(1,12,30);	# set current time to day 1, 12:30
+
+Set's the current time to a specific date and time so that L<get_clock()>
+returns the proper format.
+
+=item clock_to_ticks
+  
+	$app->clock_to_ticks(0,12,30);		# 12 hours, 30 minutes
+	$app->clock_to_ticks(10,5,0,12);	# 10 days, 5 hours, 12 seconds
+	$app->clock_to_ticks(0,0,0,123);	# 123 seconds
+
+Return time given as days, hours, minutes, seconds and ms (undef counts as 0).
+This is handy for setting timers than expire in a couple of hours, instead of
+just a few milli seconds.
 
 =back
 

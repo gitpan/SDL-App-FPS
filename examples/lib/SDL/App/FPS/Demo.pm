@@ -1,7 +1,7 @@
 
 # example subclass of SDL::App::FPS
 
-package SDL::App::FPS::Kcirb;
+package SDL::App::FPS::Demo;
 
 # (C) 2002 by Tels <http://bloodgate.com/>
 

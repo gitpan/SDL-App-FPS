@@ -5,7 +5,9 @@ README
 SIGNATURE
 TODO
 examples/demo.pl
+examples/empty.pl
 examples/lib/SDL/App/FPS/Demo.pm
+examples/lib/SDL/App/FPS/Empty.pm
 Makefile.PL
 FPS.xs
 lib/SDL/App/FPS.pm

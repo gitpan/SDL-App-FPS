@@ -18,20 +18,22 @@ PROTOTYPES: DISABLE
 #            app a bit. Also returns GetTicks(), so we avoid one call to it.
 
 SV*
-_delay(last,min_time)
+_delay(last,min_time,wake_time)
 	int	last
 	int	min_time
+	int	wake_time
   CODE:
     /*
      last      - time in ticks of last frame
      min_time  - ms to spent between frames minimum
+     wake_time - ms we were late in last frame, so we slee this time shorter
     */
     /* caluclate how long we should sleep */
     int now;
     int to_sleep;
 
     now = SDL_GetTicks();
-    to_sleep = min_time - (now - last) - 1;
+    to_sleep = min_time - wake_time - (now - last) - 1;
 
 #    printf ("to sleep %i\n",to_sleep);
     # sometimes Delay() does not seem to work, so retry until it we sleeped
@@ -42,7 +44,13 @@ _delay(last,min_time)
       now = SDL_GetTicks();
       to_sleep = min_time - (now - last);
       }
+    wake_time = 0;
+    if (now - last > min_time)
+      {
+      wake_time = now - last - min_time;
+      }
     ST(0) = newSViv(now);
     ST(1) = newSViv(now - last);
-    XSRETURN(2);
+    ST(2) = newSViv(wake_time);
+    XSRETURN(3);
 

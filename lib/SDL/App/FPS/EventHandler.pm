@@ -48,6 +48,8 @@ sub check
   # check whether the event matched the occured event or not
   my ($self,$event) = @_;
 
+  return if $self->{active} == 0;
+
   my $type = $event->type();  
   return unless $type == $self->{type};
 
@@ -64,7 +66,7 @@ sub check
       } 
     return unless $kind == $self->{kind};
     }
-
+  
   # event happened, so call callback
   &{$self->{callback}}($self->{self},$self,$event);
   }

@@ -92,6 +92,17 @@ SDL::App::FPS:
  * fixed get_timer() and test for it
  * renamed example application to "demo"
 
+2002-12-29 v0.08 Tels - 76 tests
+ * optimized next_frame():
+   - calc $frame_diff was unnecc.
+   - shifted a bit more code to XS (calc of new wake_time)
+   When doing an empty loop (with max_fps set to 500), v0.07 was able to do
+   about 11000 FPS, v0.08 manages about 23000. (1 Ghz AMD)
+ * if max_fps == 0, set it to at least 1
+ * set max_fps to 500 at most (anything above 300 will result in no cap at
+   all, currently)
+ * fixed EventHandler::check: don't check if event is inactive
+
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

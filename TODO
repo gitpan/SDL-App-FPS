@@ -7,8 +7,8 @@ SDL::App::FPS:
 * inline _ramp_time_warp() into update() for more speed?
 * add a resize_handler() hook ?
 * add a fullscreen_toggled_handler() hook ?
-* add support for random times in SDL::App::FPS::Timer
 * code most of the critical stuff in SDL::App::FPS in XS for low-overhead
+  (especially necc. for next_frame() and handle_events())
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

@@ -21,7 +21,7 @@ require Exporter;
 use vars qw/@ISA $VERSION/;
 @ISA = qw/Exporter DynaLoader/;
 
-$VERSION = '0.07';
+$VERSION = '0.08';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -86,7 +86,8 @@ sub _init
   $self->fullscreen() if $opt->{fullscreen};	# switch to fullscreen
   
   # limit to some sensible value
-  $opt->{max_fps} = 200 if $opt->{max_fps} > 200;
+  $opt->{max_fps} = 500 if $opt->{max_fps} > 500;
+  $opt->{max_fps} = 1 if $opt->{max_fps} < 1;
   $opt->{max_fps} = 0 if $opt->{max_fps} < 0;		# disable cap
   $opt->{width} = 16 if $opt->{width} < 16;
   $opt->{height} = 16 if $opt->{height} < 16;
@@ -414,41 +415,21 @@ sub next_frame
  
   # get current time at start of frame, and wait a bit if we are too fast
   my $diff; 
-  ($self->{now},$diff) = 
-    _delay($self->{lastframes}->[-1],$self->{min_time} - $self->{wake_time});
+  ($self->{now},$diff,$self->{wake_time}) = 
+    _delay($self->{lastframes}->[-1],$self->{min_time},$self->{wake_time});
 
   # advance our clock warped by time_warp
   $self->{current_time} =
     $self->{time_warp} * $diff + $self->{lastframe_time};
   $self->_ramp_time_warp() if $self->{ramp_warp_time} != 0;
 
-  if ($diff > $self->{min_time})
-    {
-    $self->{wake_time} = $diff - $self->{min_time};
-
-    # DEBUG
-    #if ($diff > $self->{min_time} + 5)
-    #  { 
-    # # took longer
-    #  print "[",$self->{now} - $self->{_last} || 0,
-    #   "] at $self->{now} took too long: $diff > $self->{min_time}\n";
-    #  $self->{_last} = $self->{now};
-    #  }
-
-    }
-  else
-    {
-    $self->{wake_time} = 0;
-    }
-
   # remember $now
   push @{$self->{lastframes}}, $self->{now};
   # track min/max time between two frames
-  my $frame_diff = $self->{now} - $self->{lastframes}->[-2];
-  $self->{min_frame_time} = $frame_diff 
-   if $frame_diff < $self->{min_frame_time}; 
-  $self->{max_frame_time} = $frame_diff 
-   if $frame_diff > $self->{max_frame_time}; 
+  $self->{min_frame_time} = $diff 
+   if $diff < $self->{min_frame_time}; 
+  $self->{max_frame_time} = $diff 
+   if $diff > $self->{max_frame_time}; 
 
   # keep only frame times over the last X milliseconds
   while ($self->{lastframes}->[0] < ($self->{now} - $self->{fps_monitor_time}))
@@ -457,11 +438,11 @@ sub next_frame
     }
 
   # calculate current_fps
-  my $time = $self->{lastframes}->[-1] - $self->{lastframes}->[0] + 1;
+  my $time = $self->{now} - $self->{lastframes}->[0] + 1;
   $self->{current_fps} = 1000 * scalar @{$self->{lastframes}} / $time;
   # update these timers only when the time to track the framerate was long
   # enough to make sense
-  if ($time > 800)
+  if ($time > 850)
     {
     $self->{min_fps} = $self->{current_fps} if
      $self->{current_fps} < $self->{min_fps}; 
@@ -482,13 +463,15 @@ sub handle_events
   # SDL_QUIT occured, otherwise false
   my $self = shift;
 
-  my $done = $self->{quit};
+  my $done = 0;
   my $event = $self->{event};
   # inner while to handle all events, not only one per frame
   while ($event->poll())			# got one event?
     {
-    return 1 if $event->type() == SDL_QUIT;
-    # check all event handlers
+    return 1 if $event->type() == SDL_QUIT;	# check this first
+    # check event with all registered event handlers
+    # TODO: group event handlers on type, and let event only be checked
+    # by the appropriate handlers for speed
     foreach my $id (keys %{$self->{event_handler}})
       {
       $self->{event_handler}->{$id}->check($event);

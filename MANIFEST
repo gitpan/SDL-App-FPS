@@ -1,0 +1,9 @@
+CHANGES				# changes from the original v0.01
+MANIFEST
+README
+SIGNATURE
+TODO
+Makefile.PL
+lib/SDL/App/FPS.pm
+t/SDL/App/MyFPS.pm
+t/myfps.t

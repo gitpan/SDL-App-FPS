@@ -1,0 +1,35 @@
+This file contains message digests of all files listed in MANIFEST,
+signed via the Module::Signature module, version 0.21.
+
+To verify the content in this distribution, first make sure you have
+Module::Signature installed, then type:
+
+    % cpansign -v
+
+It would check each file's integrity, as well as the signature's
+validity.  If "==> Signature verified OK! <==" is not displayed,
+the distribution may already have been compromised, and you should
+not run its Makefile.PL or Build.PL.
+
+-----BEGIN PGP SIGNED MESSAGE-----
+
+SHA1 6c40a7b2c79dd0647ff912d8f932b91ca4886c23 CHANGES
+SHA1 4914cf5fb450d5ade6c0bec04e0ee7d18227c736 MANIFEST
+SHA1 0a8ea366d352712f859f060e98bf03f3c08fbf18 Makefile.PL
+SHA1 c4e000d286a805421973ddac2773223abd6fe0ee README
+SHA1 25366a009aac612e99348707875519f4f09e5537 TODO
+SHA1 766684b995d39f86c86183369459ef9976af77d8 lib/SDL/App/FPS.pm
+SHA1 c4f62ea60328b09dfb85fb74b545a3632c59d9c2 t/SDL/App/MyFPS.pm
+SHA1 0d2d0db43188bc6a9bbacf353eef30a9f056074d t/myfps.t
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.6 (GNU/Linux)
+Comment: When cryptography is outlawed, bayl bhgynjf jvyy unir cevinpl.
+
+iQEVAwUBPgsZr3cLPEOTuEwVAQFLrgf9Gp3mK3lijlMhWAsrVOlQZ9/Ign4bWX4i
+9m3KJNmlScxu80cH3vOy/d2ZW3a79xWFhxQ+m5dnNOcZ6WqWxswb8uKJlnkEtPjy
+UB3zHt0ZSHOx66IwjqJVm2wh2u+tGMSYAgqNTPXE0Lej6NZ6Be8f3FnXVGqe86gC
+G+sI32qcxUwf+j7X4nf7OQPrwxTsjcMLF4WNvX+RutnBoAOA3FGZB5Ju3zgfU9k8
+0Oxg9D86/nTdQBtTnS8XO5VbDF+agO0Na4XJ++7TX9exH50rVuIT+zDpg71OOcCd
+B+acwgtu50tJyKD19eh3yP3o2k6KMuLwy/wA4GKP7542dZNSf5UnpA==
+=p6aj
+-----END PGP SIGNATURE-----

@@ -1,0 +1,70 @@
+
+############################################################################## 
+SDL::App::FPS - base/parent class for frame rate centric SDL applications
+
+This base class can be easy subclassed for your own projects. It is a basic
+building block for building SDL applications that need a fast framerate
+with event handling before each frame.
+
+Features
+========
+
+* Framerate monitoring, so you can adjust the scene complexity in real-time
+* Capping the framerate, even with the inaccurate timer delays
+* event handling in between frames (very fast response to user action)
+* decoupling of the animaition speed from the framerate by using an extra clock
+  (meaning the animation has the same speed, independed from the current frame
+   rate)
+* time warp of the clock (see above): the clock can be warped by a factor,
+  which can even be changed on a frame-by-frame basis. This allows effects
+  like slow motion or fast forward, complete with ramping (e.g. slowly slowing
+  down).
+
+Installation
+============
+
+* You need at least SDL for Perl <http://www.sdlperl.org/> and SDL itself from
+  <http://www.libsdl.org/>.
+
+* untar/ungzip the package (replace 0.02 with the version you got)
+
+	tar -xzf SDL-App-FPS-0.02.tar.gz
+
+* Check the signature. Download my key from http://bloodgate.com/ or from my
+  CPAN directory. Then do in the build directory (where you unwrapped stuff):
+
+	cpansign -v
+
+* if the signature verifies OK, proceed. Otherwise NOTIFY ME IMMIDIATELY. Do
+  NOT INSTALL THE PACKAGE! Your system might get compromised.
+
+* Build the make file:
+
+	perl Makefile.PL
+
+* Make the project
+
+	make
+
+* Run the tests:
+
+	make test
+
+* If all tests pass, install as root:
+
+	su
+	[enter password]
+	make install
+	exit
+
+* If some tests fail, please notify me.
+
+Usage
+=====
+
+Look at the files in t/ (MyFPS.pm and myfpm.t) for how to use it.
+
+Please send me test-reports, your experiences with this and your ideas - I love
+to hear about my work!
+
+Tels <http://bloodgate.com/>

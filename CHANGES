@@ -1,0 +1,31 @@
+
+############################################################################## 
+SDL::App::FPS:
+
+2002-12-25 v0.01 Tels - 3 tests (not released)
+ * rewrote test.pl into package SDL::App::FPS complete with doc and a testfile
+ * features:
+   - option handling
+   - framerate monitor
+   - time warp (slow motion, fast forward, even clock going backwards)
+   - event handling after each frame
+   - framerate cap, with sophisticated delay to acocunt for timer inaccuracies
+   - object oriented approach, subclassable
+ * added sample subclass and testfile
+
+2002-12-26 v0.02 Tels - 8 tests
+ * added $VERSION
+ * made into a proper package for easier handling
+ * added quit() to quit application from draw_frame() or anywhere else
+ * added fullscreen() (still needs some work)
+ * added can_ok() test to test for methods to exist
+ * added tests for pre_init_handler(), post_init_handler() and quit_handler()
+ * added test for framerate cap
+ * require SDL version 1.18.0 (since 1.19.x is not yet on CPAN)
+ * added ramp_time_warp(), stop_time_warp_ramp()
+ * added freeze_time(), thaw_time()
+
+Please send me test-reports, your experiences with this and your ideas - I love
+to hear about my work!
+
+Tels <http://bloodgate.com/>

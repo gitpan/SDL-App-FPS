@@ -180,8 +180,41 @@ SDL::App::FPS:
   * added mouse.pl and MyMouse.pm to show off advanced Button features
   * added color.pl and MyColor.pm to show off colors
   * mandel.pl shows percentage of already done area in recursive mode
-  * fixed event.pl (I know should try things before releasing them..)
+  * fixed event.pl (I know I should try things before releasing them..)
 
+2003-01-12 v0.13 Tels - 229 tests
+ Library:
+ fixed: 
+  * Color.pm: darken()s factor was accid. inverted (now 0..1 instead of 1..0)
+  * use 'unsigned int' instead of 'int' in XS code
+  * Timer.pm: callback no longer get's timer id (please change your code!)
+  * FPS: timers 'fire' now in the order in which they expire (e.g. the most
+    overdue timer first, then the next etc, instead of the one with the lowest
+    ID first)
+  * FPS: timers now fire multiple times in one frame (w/ diff. overdue values)
+ added:
+  * Color.pm: added blend()
+  * way more tests for Color.pm
+  * added two color ramps (linaer, sinus) to colors.pl to show blending/mixing
+  * FPS.pm: save() and load()
+  * FPS: base_ticks to adjust now(), allows load() to 'reset' the time to what
+    it was when the save() occured
+  * XS: keep wake_time, no need to carry it from/to Perl: 24,000 FPS empty
+  * XS: monitor framerate instead in Perl: about 31000 FPS empty
+  * min_fps() and max_fps() in XS
+  * min_frame_time() and max_frame_time() in XS: now about 34000 FPS empty
+  * FPS.pm: added resize() method to manually resize window
+  * Timer.pm: added is_due() and fire() to seperate these two steps
+  * Eventhandler: char2key() - convert char to SDLK_foo
+  * Eventhandler: support for key additional (all, none) modifiers 
+ Demos:
+ fixed:
+  * mouse.pl: MyMouse uses Color.pm
+ added:
+  * added examples/boulder/ - a simple game in a cave, showing resizing w/
+    min. window size, keeping a playfield with a fog-o-war
+  * added examples/keycheck.pl to show event handlers with key modifiers 
+  
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

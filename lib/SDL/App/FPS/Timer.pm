@@ -13,7 +13,7 @@ use SDL::App::FPS::Thingy;
 use vars qw/@ISA $VERSION/;
 @ISA = qw/SDL::App::FPS::Thingy Exporter/;
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 sub _init
   {
@@ -44,12 +44,13 @@ sub _init
     {
     $self->{next_shot} += int(rand($self->{rand})- $self->{rand} / 2);
     }
-  $self->{overshot} = 0;			# when we fire, we are late
+  $self->{overdue} = 0;				# when we fire, we are late
 						# by this amount
 
   if ($self->{time} == 0)			# well, maybe due right now
     {
-    $self->_fire($self->{start});
+    $self->_should_fire($self->{start});
+    $self->fire();
     }
 
   $self;
@@ -76,13 +77,13 @@ sub count
   $self->{count};
   }
 
-sub _fire
+sub _should_fire
   {
   # fire the timer
   my ($self,$now) = @_;
 
   $self->{due} = 1;
-  $self->{overshot} = $now - $self->{next_shot};	# we are late
+  $self->{overdue} = $now - $self->{next_shot};		# we are so late
   # our next shot will be then (regardless of when this shot was fired)
   $self->{next_shot} += $self->{delay};
   if ($self->{rand} != 0)
@@ -93,15 +94,25 @@ sub _fire
   $self->{time} = $self->{delay};			# allow a positive
 							# time and then
 							# negative delays
+  $self->{overdue};
+  }
+
+sub fire
+  {
+  # when the timer determined that it was due, this routine must be called
+  # to make it really fire 
+  my ($self,$overdue) = @_;
+
+  $overdue = $self->{overdue} if !defined $overdue;	# FPS.pm sets it
+
   # fire timer now
-  &{$self->{code}}( 
-    $self->{app}, $self, $self->{id}, $self->{overshot}, @{$self->{args} });
-  1;
+  &{$self->{code}}( $self->{app}, $self, $overdue, @{$self->{args} });
   }
 
 sub due
   {
-  # check whether this timer is due or not
+  # check whether this timer is due or not, return 0 for not due, otherwise
+  # returns 1
   my ($self,$now,$time_warp) = @_;
  
   $self->{due} = 0;				# not yet
@@ -117,7 +128,32 @@ sub due
     {
     return 0 if $time_warp > 0 || $now > $self->{next_shot};
     }
-  $self->_fire($now); 
+  $self->_should_fire($now); 
+  $self->fire($now);
+  1;
+  }
+
+sub is_due
+  {
+  # check whether this timer is due or not, return undef for not due, otherwise
+  # returns the overdue time (e.g. the time in ms the timer should have fired
+  # ago). If it returns something else than -1, 
+  my ($self,$now,$time_warp) = @_;
+ 
+  $self->{due} = 0;				# not yet
+  return 
+    if ($time_warp == 0) || ($self->{count} == 0) || ($self->{active} == 0);
+
+  # freeze backwards looking timers if time goes forward and vice versa
+  if ($self->{time} > 0)
+    {
+    return if $time_warp < 0 || $now < $self->{next_shot};
+    }
+  else
+    {
+    return if $time_warp > 0 || $now > $self->{next_shot};
+    }
+  $self->_should_fire($now); 
   }
 
 1;
@@ -152,13 +188,13 @@ not to use it directly.
 Once the timer has expired, the callback code (CODE ref) is called with the
 following parameters:
 
-	&{$callback}($self,$timer,$id,$overshot,@arguments);
+	&{$callback}($self,$timer,$overdue,@arguments);
 
 C<$self> is the app the timer resides in (e.g. the object of type
-SDL::App::FPS), C<$timer> is the timer itself, C<$id> it's id, C<$overshot>
-is the time the timer is late (e.g. it fires now, but should have fired
-C<-$overshot> ms ago) and the additional arguments are whatever was passed
-when the timer was created.
+SDL::App::FPS), C<$timer> is the timer itself, C<$overdue> is the time the
+timer is late (e.g. it fires now, but should have fired C<-$overdue> ms ago)
+and the additional arguments are whatever was passed when the timer was
+created.
 
 =head1 METHODS
 

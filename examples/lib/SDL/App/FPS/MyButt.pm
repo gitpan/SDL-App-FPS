@@ -235,7 +235,7 @@ sub _demo_add_rect
      # and add timer to remove it a bit later
      $self->add_timer(200, 1, 0, 0, 
       sub { 
-       my ($self,$timer,$tid,$overshot,$id) = @_;
+       my ($self,$timer,$overshot,$id) = @_;
        my $rect = $self->{rectangles};
        $self->_demo_draw_rectangle ($rect->{$id},$self->{black});
        #$rect->{$id}->{col} = 2;

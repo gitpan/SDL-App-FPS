@@ -16,7 +16,7 @@ BEGIN
 can_ok ('SDL::App::FPS::Timer', qw/ 
   count due next_shot
   new _init activate is_active deactivate id
-  _fire
+  fire is_due
   /);
 
 my $fired = 0;
@@ -66,7 +66,7 @@ is ($timer->count(), -1, 'count unchanged');
 
 sub fire2
   {
-  my ($self, $timer, $timer_id, $overshot, @args) = @_;
+  my ($self, $timer, $overshot, @args) = @_;
 
   is ($overshot, 0, 'overshot is 0');
   is (scalar @args, 2, 'got 2 additional arguments');

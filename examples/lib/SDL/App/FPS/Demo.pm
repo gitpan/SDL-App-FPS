@@ -212,7 +212,7 @@ sub _demo_add_fire
 sub _demo_add_shot
   {
   # add a shot to the screen going from right to left
-  my ($self,$timer,$timer_id,$overshot) = @_;
+  my ($self,$timer,$overshot) = @_;
     
   # comment in this line to see how the row of shots is no longer
   # uniform due to timer firing at start of frame, not when it is due

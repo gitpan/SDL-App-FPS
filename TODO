@@ -16,9 +16,10 @@ SDL::App::FPS:
   + tests for that this works correctly (the event demo app relies on it)
   + same trick for Buttons
 * get $event->type(), $event->key_sym() and $event->button() and pass them
-  to the check() routines of EventHandler and Button objects, because thos
+  to the check() routines of EventHandler and Button objects, because those
   saves us multiple calls to get the same value 
 * elliptic shapes for Button are not properly yet
+* load() and save() are not fully done yet
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

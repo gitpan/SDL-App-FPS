@@ -26,6 +26,7 @@ SDL::App::FPS:
 * event handler in FPS.pm needs to reverse order of events (e.g. poll all,
   then hand them to the event handlers)? Really?
 
+
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

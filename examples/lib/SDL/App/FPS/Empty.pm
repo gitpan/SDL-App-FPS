@@ -13,7 +13,6 @@ use SDL::App::FPS qw/
   BUTTON_MOUSE_RIGHT
   /;
 use SDL::Event;
-#use SDL::App::FPS::EventHandler;
 
 use vars qw/@ISA/;
 @ISA = qw/SDL::App::FPS/;
@@ -26,6 +25,12 @@ sub draw_frame
   # draw one frame, usually overrriden in a subclass.
   my ($self,$current_time,$lastframe_time,$current_fps) = @_;
 
+#  if ($current_time - $self->{last} > 1000)
+#    {
+#    print "fps ",$self->current_fps(),
+#          " min ",$self->min_fps()," max ", $self->max_fps(),"\n";
+#    $self->{last} = $current_time;
+#    }
   }
 
 sub post_init_handler
@@ -36,6 +41,7 @@ sub post_init_handler
   $self->watch_event (
     quit => SDLK_q, fullscreen => SDLK_f, freeze => SDLK_SPACE,
    ); 
+  $self->{last} = $self->current_time();
   }
 
 1;

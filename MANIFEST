@@ -6,6 +6,11 @@ README
 SIGNATURE
 LICENSE
 TODO
+examples/boulder/boulder.pl
+examples/boulder/data/level0001.txt
+examples/boulder/save/quicksave.txt
+examples/boulder/lib/SDL/App/FPS/MyBoulder.pm
+examples/boulder/lib/SDL/App/FPS/MyCave.pm
 examples/demo.pl
 examples/empty.pl
 examples/event.pl
@@ -13,6 +18,7 @@ examples/mandel.pl
 examples/buttons.pl
 examples/mouse.pl
 examples/colors.pl
+examples/keycheck.pl
 examples/lib/SDL/App/FPS/Demo.pm
 examples/lib/SDL/App/FPS/Empty.pm
 examples/lib/SDL/App/FPS/MyEvent.pm
@@ -20,6 +26,7 @@ examples/lib/SDL/App/FPS/MyMandel.pm
 examples/lib/SDL/App/FPS/MyButt.pm
 examples/lib/SDL/App/FPS/MyMouse.pm
 examples/lib/SDL/App/FPS/MyColors.pm
+examples/lib/SDL/App/FPS/MyKeyCheck.pm
 Makefile.PL
 FPS.xs
 lib/SDL/App/FPS.pm
@@ -30,10 +37,12 @@ lib/SDL/App/FPS/EventHandler.pm
 lib/SDL/App/FPS/Group.pm
 lib/SDL/App/FPS/Color.pm
 t/SDL/App/MyFPS.pm
+t/SDL/App/MyFPS2.pm
 t/button.t
 t/color.t
 t/event.t
 t/group.t
 t/myfps.t
+t/fps_timer.t				# test FPS.pm timers
 t/thingy.t
 t/timer.t

@@ -11,14 +11,16 @@ use Exporter;
 use vars qw/@ISA $VERSION @EXPORT_OK $AUTOLOAD/;
 @ISA = qw/Exporter/;
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 @EXPORT_OK = qw/
   RED GREEN BLUE
   ORANGE YELLOW PURPLE MAGENTA CYAN BROWN
-  WHITE BLACK GRAY LIGHTGRAY DARKGRAY
+  WHITE BLACK
+  GRAY LIGHTGRAY DARKGRAY
+  GREY LIGHTGREY DARKGREY
   LIGHTRED DARKRED LIGHTBLUE DARKBLUE LIGHTGREE DARKGREEN
-  darken lighten
+  darken lighten blend
   /;
 
 use SDL::Color;
@@ -30,6 +32,9 @@ my $color =
   LIGHTGRAY	=> [0xa0,0xa0,0xa0],
   DARKGRAY	=> [0x40,0x40,0x40],
   GRAY		=> [0x80,0x80,0x80],
+  LIGHTGREY	=> [0xa0,0xa0,0xa0],
+  DARKGREY	=> [0x40,0x40,0x40],
+  GREY		=> [0x80,0x80,0x80],
   RED		=> [0xff,0x00,0x00],
   GREEN		=> [0x00,0xff,0x00],
   BLUE 		=> [0x00,0x00,0xff],
@@ -80,12 +85,14 @@ sub AUTOLOAD
 
 sub darken
   {
+  shift unless ref($_[0]);		# allow SDL::App::FPS::Color->darken()
   my ($color,$factor) = @_;
 
   if ($factor < 0 || $factor > 1)
     {
     require Carp; Carp::croak ("Darkening factor must be between 0..1");
     }
+  $factor = 1-$factor;
   return SDL::Color->new ( 
     -r => $color->r() * $factor, 
     -g => $color->g() * $factor, -b => $color->b() * $factor);
@@ -93,6 +100,7 @@ sub darken
 
 sub lighten
   {
+  shift unless ref($_[0]);		# allow SDL::App::FPS::Color->lighten()
   my ($color,$factor) = @_;
 
   if ($factor < 0 || $factor > 1)
@@ -106,6 +114,24 @@ sub lighten
     -r => $r + (0xff - $r) * $factor, 
     -g => $g + (0xff - $g) * $factor, 
     -b => $b + (0xff - $b) * $factor ); 
+  }
+
+sub blend
+  {
+  shift unless ref($_[0]);		# allow SDL::App::FPS::Color->blend()
+  my ($color_a,$color_b,$factor) = @_;
+
+  if ($factor < 0 || $factor > 1)
+    {
+    require Carp; Carp::croak ("Darkening factor must be between 0..1");
+    }
+  my $r = $color_a->r();
+  my $g = $color_a->g();
+  my $b = $color_a->b();
+  return SDL::Color->new ( 
+    -r => $r + ($color_b->r() - $r) * $factor, 
+    -g => $g + ($color_b->g() - $g) * $factor, 
+    -b => $b + ($color_b->b() - $b) * $factor ); 
   }
 
 1;
@@ -142,8 +168,9 @@ The following color names exist:
   	RED		GREEN		BLUE
 	ORANGE		YELLOW		PURPLE
 	MAGENTA 	CYAN 		BROWN
-	WHITE		BLACK		GRAY
-	LIGHTGRAY	DARKGRAY
+	WHITE		BLACK
+	GRAY		LIGHTGRAY	DARKGRAY
+	GREY		LIGHTGREY	DARKGREY
 	LIGHTRED 	DARKRED
 	LIGHTBLUE	DARKBLUE
 	LIGHTGREE	DARKGREEN
@@ -152,7 +179,7 @@ The following color names exist:
 
 	$new_color = SDL::App::FPS::Color::darken($color,$factor);
 
-C<$factor> must be between 0 (result is black) and 1 (result is original
+C<$factor> must be between 1 (result is black) and 0 (result is original
 color). C<darken()> darkens the color by this factor, for instance 0.5 makes
 a color of 50% color values from the original color.
 
@@ -164,7 +191,13 @@ C<$factor> must be between 0 (result is original color) and 1 (result is
 white). C<lighten()> darkens the color by this factor, for instance 0.5 makes
 a color of 50% higher color values from the original color.
 
-=head1 METHODS
+=head2 blend
+
+	$new_color = SDL::App::FPS::Color::blend($color_a,$color_b,$factor);
+
+C<$factor> must be between 0 (result is C<$color_a>) and 1 (result is
+C<$color_b>). C<blend()> creates a blended color from the two colors. A
+factor of 0.5 means it will result in exact the middle of color A and color B.
 
 =head1 AUTHORS
 

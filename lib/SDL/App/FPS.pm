@@ -18,6 +18,8 @@ use SDL::App::FPS::Group;
 use SDL::App::FPS::Button
  qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE/;
 
+require Storable;
+
 require DynaLoader;
 require Exporter;
 
@@ -26,7 +28,7 @@ use vars qw/@ISA $VERSION @EXPORT_OK/;
 
 @EXPORT_OK = qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE/;
 
-$VERSION = '0.12';
+$VERSION = '0.13';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -43,11 +45,11 @@ sub new
   $self->_create_window();
   
   my $app = $self->{_app};
-  $app->{now} = SDL::GetTicks();
-  $app->{start_time} = $app->{now};		# for time_warp
-  $app->{current_time} = $app->{now};		# warped clock (current frame)
-  $app->{lastframe_time} = $app->{now};		# warped clock (last frame)
-  $app->{lastframes} = [ $app->{now} ];
+  $app->{base_ticks} = SDL::GetTicks();
+  $app->{now} = 0;
+  $app->{start_time} = 0;			# for time_warp
+  $app->{current_time} = 0;			# warped clock (current frame)
+  $app->{lastframe_time} = 0;			# warped clock (last frame)
 
   $self->post_init_handler();
 
@@ -99,7 +101,6 @@ sub _init
   # limit to some sensible value
   $opt->{max_fps} = 500 if $opt->{max_fps} > 500;
   $opt->{max_fps} = 1 if $opt->{max_fps} < 1;
-  $opt->{max_fps} = 0 if $opt->{max_fps} < 0;		# disable cap
   $opt->{width} = 16 if $opt->{width} < 16;
   $opt->{height} = 16 if $opt->{height} < 16;
   $opt->{depth} = 8 if $opt->{depth} < 8;
@@ -112,13 +113,7 @@ sub _init
   $app->{min_time} = 1000 / $opt->{max_fps};
   # contains the FPS avaraged over the last second
   $app->{current_fps} = 0;
-  $app->{min_fps} = 10000;			# insanely high to get lower
-  $app->{max_fps} = 0;				# insanely low to get higher
-  $app->{min_frame_time} = 10000; 		# how long per frame min?
-  $app->{max_frame_time} = 0; 			# how long per frame max?
-  $app->{wake_time} = 0;			# adjust for fps capping
   $app->{frames} = 0;				# number of frames
-  $app->{fps_monitor_time} = 1000;		# 1 second (hardcode for now)
   $app->{ramp_warp_target} = 0;			# disable ramping
   $app->{ramp_warp_time} = 0;			# disable ramping
   
@@ -149,7 +144,6 @@ sub option
     if ($key eq 'max_fps')
       {
       $app->{min_time} = 1000 / $opt->{max_fps};
-      $app->{wake_time} = 0;
       }
     if ($key eq 'fullscreen')
       {
@@ -158,6 +152,21 @@ sub option
     }
   return undef unless exists $opt->{$key};
   $opt->{$key};
+  }
+
+sub resize
+  {
+  my ($self,$w,$h) = @_;
+
+  # can resize?
+  return if $self->{_app}->{options}->{resizeable} == 0;
+
+  my $app = $self->{_app};
+  # resize
+  $app->{app}->resize($w,$h);
+  # cache new size
+  $app->{width} = $app->{app}->width();
+  $app->{height} = $app->{app}->height();
   }
 
 sub _resized
@@ -389,37 +398,21 @@ sub current_fps
   $self->{_app}->{current_fps};
   }
 
-sub min_fps
-  {
-  # return minimum fps we ever achieved
-  my $self = shift;
-
-  $self->{_app}->{min_fps};
-  }
-
-sub max_fps
-  {
-  # return maximum fps we ever achieved
-  my $self = shift;
-
-  $self->{_app}->{max_fps};
-  }
-
-sub max_frame_time
-  {
-  # return maximum time per frame ever
-  my $self = shift;
-
-  $self->{_app}->{max_frame_time};
-  }
-
-sub min_frame_time
-  {
-  # return minimum time per frame ever
-  my $self = shift;
-
-  $self->{_app}->{min_frame_time};
-  }
+#sub max_frame_time
+# {
+#  # return maximum time per frame ever
+#  my $self = shift;
+#
+#  $self->{_app}->{max_frame_time};
+#  }
+#
+#sub min_frame_time
+#  {
+#  # return minimum time per frame ever
+#  my $self = shift;
+#
+#  $self->{_app}->{min_frame_time};
+#  }
 
 sub frames
   {
@@ -464,40 +457,13 @@ sub _next_frame
  
   # get current time at start of frame, and wait a bit if we are too fast
   my $diff; 
-  ($app->{now},$diff,$app->{wake_time}) = 
-    _delay($app->{lastframes}->[-1],$app->{min_time},$app->{wake_time});
+  ($app->{now},$diff,$app->{current_fps}) = 
+    _delay( $app->{min_time}, $app->{base_ticks});
 
   # advance our clock warped by time_warp
   $app->{current_time} =
     $app->{time_warp} * $diff + $app->{lastframe_time};
   $self->_ramp_time_warp() if $app->{ramp_warp_time} != 0;
-
-  # remember $now
-  push @{$app->{lastframes}}, $app->{now};
-  # track min/max time between two frames
-  $app->{min_frame_time} = $diff 
-   if $diff < $app->{min_frame_time}; 
-  $app->{max_frame_time} = $diff 
-   if $diff > $app->{max_frame_time}; 
-
-  # keep only frame times over the last X milliseconds
-  while ($app->{lastframes}->[0] < ($app->{now} - $app->{fps_monitor_time}))
-    {
-    shift @{$app->{lastframes}};		# remove one
-    }
-
-  # calculate current_fps
-  my $time = $app->{now} - $app->{lastframes}->[0] + 1;
-  $app->{current_fps} = 1000 * scalar @{$app->{lastframes}} / $time;
-  # update these timers only when the time to track the framerate was long
-  # enough to make sense
-  if ($time > 850)
-    {
-    $app->{min_fps} = $app->{current_fps} if
-     $app->{current_fps} < $app->{min_fps}; 
-    $app->{max_fps} = $app->{current_fps} if
-     $app->{current_fps} > $app->{max_fps}; 
-    }
 
   # now do something that takes time, like updating the world and drawing it
   $self->draw_frame(
@@ -516,6 +482,7 @@ sub _handle_events
   my $app = $self->{_app};
   my $event = $app->{event};
   # inner while to handle all events, not only one per frame
+  #print $event->set_key_repeat(250,100);
   while ($event->poll())			# got one event?
     {
     return 1 if $event->type() == SDL_QUIT;	# check this first
@@ -524,6 +491,7 @@ sub _handle_events
     # by the appropriate handlers for speed
 
     my $type = $event->type();
+    # print "$type\n";
 
     # hack for now: find all active handlers, and check event only with
     # these
@@ -687,28 +655,55 @@ sub _expire_timers
   $app->{timer_modified} = 0;				# track add/del
   my $now = $app->{current_time};			# timers are warped
   my $time_warp = $app->{time_warp};			# timers are warped
+
+  # check (active) timers for beeing due 
+  # actually, inactive timer will simple be not due
+  my $due = [];
   foreach my $id (keys %{$app->{timers}})
     {
-    my $timer = $app->{timers}->{$id};
-    $timer->due($now,$time_warp);			# let timer fire
-    # remember nearest time to fire a time
-    if ($app->{time_warp} > 0)
-      {
-      $app->{next_timer_check} = $timer->{next_shot}
-        if $timer->{next_shot} < $app->{next_timer_check} ||
-         $app->{next_timer_check} == 0;
-      }
-    else
-      {
-      $app->{next_timer_check} = $timer->{next_shot}
-        if $timer->{next_shot} > $app->{next_timer_check} ||
-         $app->{next_timer_check} == 0;
-      }
-   $app->{timer_modified} = 1 && delete $app->{timers}->{$id}
-     if $timer->count() == 0;				# remove any expired
+    my $timer = $app->{timers}->{$id}; my $overdue;
+    do {
+      $overdue = $timer->is_due($now,$time_warp);	# let timer check
+      if (defined $overdue)
+        {
+        # timer should have fired, so remember it and it's overdue value
+        push @$due, [ $timer, $overdue ];
+        $app->{timer_modified} = 1 && delete $app->{timers}->{$id}
+         if $timer->{count} == 0;		# remove any exhausted timer
+        }
+      # if timer's next shot would also be before $now, add it also
+      } while (defined $overdue);
     }
+
+  # fire due timers sorted on their overdue value
+  foreach my $t (sort { $b->[1] <=> $a->[1] } @$due)
+    { 
+    my $timer = $t->[0];
+    $timer->fire($t->[1]);
+    my $id = $timer->{id};
+
+    # if the timer would need to fire again, keep it
+    if ($app->{timer_modified} == 0)	# if disabled, don't bother
+      {
+      # else (it does not need to fire again):
+      # remember nearest time to fire a timer
+      if ($app->{time_warp} > 0)
+        {
+        $app->{next_timer_check} = $timer->{next_shot}
+          if $timer->{next_shot} < $app->{next_timer_check} ||
+           $app->{next_timer_check} == 0;
+        }
+      else
+        {
+        $app->{next_timer_check} = $timer->{next_shot}
+          if $timer->{next_shot} > $app->{next_timer_check} ||
+           $app->{next_timer_check} == 0;
+        }
+      }
+    }
+
   $app->{next_timer_check} = 0			# disable (always check)
-   if $app->{timer_modified} != 0;	
+    if $app->{timer_modified} != 0;
   }
 
 sub timers
@@ -780,6 +775,50 @@ sub add_group
   SDL::App::FPS::Group->new($self);
   }
 
+##############################################################################
+
+sub load
+  {
+  my ($self,$sig,$version,$file) = @_;
+  
+  my $load = Storable::lock_retrieve($file);
+  return (undef, "Error retrieving data from '$file'") if !defined $load;
+
+  if (!exists $load->{self} || $load->{sig} !~ /^SDL::App::FPS::/)
+    {
+    return (undef, "'$file' doesn't contain a properly saved state");
+    }
+  if (!exists $load->{sig} || $load->{sig} !~ /^$sig/)
+    {
+    return (undef, "'$file' is not a properly saved state");
+    }
+  if (!exists $load->{ver} || $load->{ver} > $version)
+    {
+    return (undef, "'$file' can only be read with v$version or newer");
+    }
+  my $data = $load->{data};
+
+  # overwrite our own data with the saved version
+  $self->{app} = $load->{data};
+  # fake time to be what it was when we saved
+  $self->{_app}->{base_ticks} = SDL::GetTicks();
+  return ($data,undef);
+  }
+
+sub save
+  {
+  my ($self,$sig,$min_version,$file,$data) = @_;
+
+  Storable::lock_store( {
+   self => 'SDL::App::FPS::$VERSION',
+   sig => $sig,
+   ver => $min_version,
+   app => $self->{app},
+   data => $data 
+   }, $file);
+  }
+
+##############################################################################
 ##############################################################################
 # routines that are usually overriden in a subclass
 
@@ -1238,6 +1277,21 @@ rate than you want. However, only max_fps > 100 is affected, anything below
 C<new()> calls L<pre_init_handler()> before creating the SDL application, and
 L<post_init_handler()> afterwards. So you can override thess two for your own
 desires.
+
+=item save
+
+	$app->save($additional_data);
+
+Saves the application state to a file. $addtional data can contain a 
+reference to additional data that will also be saved. See also L<load()>.
+
+=item load
+
+	($data,$error) = $app->load();
+
+Loads the application state from a file. If additional data was passed to
+L<save()>, then $data will contain a references to this data afterwards.
+C<$error> will contain any error that might occur, or undef.
 
 =item main_loop()
 

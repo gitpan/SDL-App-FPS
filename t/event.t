@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 14;
+use Test::More tests => 22;
 use strict;
 
 BEGIN
@@ -16,6 +16,10 @@ BEGIN
 can_ok ('SDL::App::FPS::EventHandler', qw/ 
   rebind check type kind
   new _init activate is_active deactivate id
+  char2key
+  _init_mod
+  require_all_modifiers
+  ignore_additional_modifiers
   /);
 
 use SDL::Event;
@@ -31,6 +35,7 @@ sub new { bless { }, 'DummyEvent'; }
 
 sub type { SDL_KEYDOWN; }
 sub key_sym { SDLK_SPACE; }
+sub key_mod { 0; }
 
 package DummyEventMouse;
 
@@ -41,6 +46,7 @@ sub new { bless { button => $_[1] }, 'DummyEventMouse'; }
 
 sub type { SDL_MOUSEBUTTONDOWN; }
 sub button { $_[0]->{button}; }			# RMB 
+sub key_mod { 0; }
 
 ##############################################################################
 
@@ -81,4 +87,19 @@ is ($pressed, 1, 'callback was called');
 $dummyevent = DummyEventMouse->new( BUTTON_MOUSE_RIGHT );
 $handler->check($dummyevent);
 is ($pressed, 2, 'callback was called again');
+  
+is ($handler->require_all_modifiers(), 0, 'require all');
+is ($handler->ignore_additional_modifiers(), 1, 'ignore additional');
+
+$handler = SDL::App::FPS::EventHandler->new
+  ('main', SDL_KEYDOWN, [ SDLK_a, SDLK_LSHIFT ],
+   sub { $pressed++; }, );
+
+is ($handler->require_all_modifiers(), 0, 'require all');
+is ($handler->ignore_additional_modifiers(), 0, 'ignore additional');
+
+is ($handler->require_all_modifiers(1), 1, 'now require all');
+is ($handler->require_all_modifiers(), 1, 'still require all');
+is ($handler->ignore_additional_modifiers(1), 1, 'now ignore additional');
+is ($handler->ignore_additional_modifiers(), 1, 'still ignore additional');
 

@@ -20,8 +20,8 @@ my $app = SDL::App::FPS::Empty->new( $options );
 $app->main_loop();
 
 print "Running time was ", int($app->now() / 10)/100, " seconds\n";
-print "Minimum framerate ",int($app->min_fps()*10)/10,
-      " fps, maximum framerate ",int($app->max_fps()*10)/10," fps\n";
+print "Minimum framerate ",$app->min_fps(),
+      " fps, maximum framerate ",$app->max_fps()," fps\n";
 print "Minimum time per frame ", $app->min_frame_time(),
       " ms, maximum time per frame ", $app->max_frame_time()," ms\n";
 print "Thank you for playing!\n";

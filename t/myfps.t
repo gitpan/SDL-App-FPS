@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 40;
+use Test::More tests => 43;
 use strict;
 
 BEGIN
@@ -26,13 +26,14 @@ can_ok ('SDL::App::MyFPS', qw/
   pause
   min_fps max_fps
   min_frame_time max_frame_time
-  width height depth
+  width height depth resize
   app
   del_timer timers add_timer get_timer
   add_event_handler del_event_handler
   add_button del_button
   add_group
   watch_event
+  save load
   _resized 
   in_fullscreen
   BUTTON_MOUSE_LEFT
@@ -43,7 +44,7 @@ can_ok ('SDL::App::MyFPS', qw/
 
 use SDL::Event;
 
-my $options = { width => 640, height => 480, depth => 24, };
+my $options = { width => 640, height => 480, depth => 24, max_fps => 60};
 
 my $app = SDL::App::MyFPS->new( $options );
 
@@ -74,7 +75,7 @@ is ($app->{myfps}->{quit_handler},1, 'quit_handler() run once');
 is ($app->{myfps}->{pre_init_handler},1, 'pre_init_handler() run once');
 is ($app->{myfps}->{post_init_handler},1, 'post_init_handler() run once');
 is ($app->{myfps}->{drawcounter},100, 'drawn 100 frames');
-is ($app->{myfps}->{now} > 0, 1, 'now was initialized');
+is ($app->{myfps}->{now} == 0, 1, 'now was initialized to 0');
 is ($app->{myfps}->{timer_fired}, 1, 'timer fired once');
 is ($app->time_warp(), 1, 'time_warp is 1.0');
 is ($app->time_is_frozen(), '', 'time is not frozen');
@@ -91,12 +92,15 @@ is ($app->fullscreen(1), 1, 'already fullscreen');
 is ($app->in_fullscreen(), 1, 'really in fullscreen');
 is ($app->fullscreen(0), 0, 'back to windowed mode');
 
-is ($app->max_frame_time() > 0, 1, 'max_frame_time was set');
-is ($app->min_frame_time() < 10000, 1, 'min_frame_time was set');
+is ($app->max_frame_time() > 1, 1, 'max_frame_time was set');
+is ($app->min_frame_time() < 1000, 1, 'min_frame_time was set');
 
 # we cap at 60 frames, so the framerate should not be over 65 (some extra due
-# to timer inaccuracies)
+# to timer inaccuracies) and not below 10
 is ($app->current_fps() < 65, 1, 'fps < 65');
+is ($app->current_fps() > 10, 1, 'fps > 10');
+is ($app->min_fps() > 10, 1, 'min fps > 10');
+is ($app->max_fps() < 65, 1, 'max fps < 10');
 
 # test that adding timer really adds more of them
 my $timer1 = $app->add_timer( 2000,1,200, 0, sub {});
@@ -113,6 +117,7 @@ is ($app->timers(), 0, 'none left');
 
 is ($app->current_time() > 0, 1, 'current time elapsed');
 is ($app->now() == $app->current_time(), 1, 'current time equals real time');
+
 
 ##############################################################################
 

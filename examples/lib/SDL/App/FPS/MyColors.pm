@@ -9,7 +9,7 @@ use strict;
 
 use SDL::App::FPS;
 use SDL::Event;
-use SDL::App::FPS::Color qw/BLACK WHITE GRAY darken lighten/;
+use SDL::App::FPS::Color qw/BLACK WHITE GRAY darken lighten blend/;
 
 use vars qw/@ISA/;
 @ISA = qw/SDL::App::FPS/;
@@ -124,6 +124,7 @@ sub _draw_colors
 
     $x += 45;
     }
+  # white => color => black
   my $y = 120;
   for my $col (qw/DARKRED DARKBLUE/)
     {
@@ -133,7 +134,7 @@ sub _draw_colors
       my $r;
       if ($i < 0)
         {
-        $r = darken($c,(100+$i) / 100); 
+        $r = darken($c,-$i / 100); 
         }
       else
         {
@@ -143,6 +144,35 @@ sub _draw_colors
       }
     $y += 220;
     }
+  # color A => color B => color C
+  $x = 20;
+  my $start = BLACK;
+  for my $col (qw/RED BLUE GREEN WHITE/)
+    {
+    my $c = SDL::App::FPS::Color->$col();
+    for (my $i = 0; $i < 100; $i++)
+      {
+      my $r;
+      $r = blend($start,$c,$i / 100); 
+      $self->_draw_ver_line ($x++,380,32,1, $r);
+      }
+    $start = $c;
+    }
+  # color A => color B (sinus)
+  $x = 20;
+  my $start = BLACK;
+  for my $col (qw/RED BLUE GREEN WHITE/)
+    {
+    my $c = SDL::App::FPS::Color->$col();
+    for (my $i = 0; $i < 100; $i++)
+      {
+      my $r;
+      $r = blend($start,$c, sin(1.57 * $i / 100)); 
+      $self->_draw_ver_line ($x++,420,32,1, $r);
+      }
+    $start = $c;
+    }
+  
   my $r = SDL::Rect->new(
    -width => $self->width(), -height => $self->height());
   $self->update($r);

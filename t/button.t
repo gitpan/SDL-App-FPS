@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-use Test::More tests => 34;
+use Test::More tests => 38;
 use strict;
 
 BEGIN
@@ -28,7 +28,9 @@ can_ok ('SDL::App::FPS::Button', qw/
   BUTTON_HOVER
   BUTTON_CLICK
   BUTTON_PRESSED
+  BUTTON_UP
   BUTTON_RELEASED
+  BUTTON_DOWN
   /);
 
 ##############################################################################
@@ -40,6 +42,8 @@ use SDL::Event;
 sub new { bless { }, 'DummyEvent'; }
 
 sub type { SDL_MOUSEBUTTONDOWN; }
+
+sub button { SDL::App::FPS::Button::BUTTON_MOUSE_LEFT; }
 
 sub motion_x { 2; }
 sub motion_y { 2; }
@@ -101,7 +105,24 @@ $button->check($dummyevent);
 is ($pressed->{$button->id()} || 0, 0, 'callback was not called');
 $button->activate();
 $button->check($dummyevent);
-is ($pressed->{$button->id()}, 1, 'callback was called');
+is ($pressed->{$button->id()}|| 0, 0, 'callback was not called');
+
+$button = SDL::App::FPS::Button->new
+  ( 'main', 11, 22, 20, 40,
+   SDL::App::FPS::Button::BUTTON_DOWN,
+   SDL::App::FPS::Button::BUTTON_RECTANGULAR,
+   SDL::App::FPS::Button::BUTTON_MOUSE_LEFT,
+   sub { my ($self,$button,@args) = @_;
+    is ($self, 'main', 'app got passed ok');
+    is (scalar @args, 2, '2 additional args');
+    is ($args[0], 123, 'first ok');
+    is ($args[1], 345, 'second ok');
+    $pressed->{$button->id()}++; 
+   }, 123, 345
+  );
+$button->check($dummyevent);
+is ($pressed->{$button->id()}, 1, 'callback was ok');
+
 
 is ($button->height(0), 1, 'h is never 0');
 is ($button->width(0), 1, 'w is never 0');

@@ -16,7 +16,7 @@ BEGIN
   unshift @INC, '../blib/arch/';
   }
 
-use SDL::App::FPS::MyButt;
+use SDL::App::FPS::MyButt;	# grab MyButt and use it
 
 my $options = { width => 800, height => 600, max_fps => 40};
 

@@ -11,11 +11,15 @@ examples/empty.pl
 examples/event.pl
 examples/mandel.pl
 examples/buttons.pl
+examples/mouse.pl
+examples/colors.pl
 examples/lib/SDL/App/FPS/Demo.pm
 examples/lib/SDL/App/FPS/Empty.pm
 examples/lib/SDL/App/FPS/MyEvent.pm
 examples/lib/SDL/App/FPS/MyMandel.pm
 examples/lib/SDL/App/FPS/MyButt.pm
+examples/lib/SDL/App/FPS/MyMouse.pm
+examples/lib/SDL/App/FPS/MyColors.pm
 Makefile.PL
 FPS.xs
 lib/SDL/App/FPS.pm
@@ -24,8 +28,10 @@ lib/SDL/App/FPS/Button.pm
 lib/SDL/App/FPS/Thingy.pm		# base class for timers, buttons etc
 lib/SDL/App/FPS/EventHandler.pm
 lib/SDL/App/FPS/Group.pm
+lib/SDL/App/FPS/Color.pm
 t/SDL/App/MyFPS.pm
 t/button.t
+t/color.t
 t/event.t
 t/group.t
 t/myfps.t

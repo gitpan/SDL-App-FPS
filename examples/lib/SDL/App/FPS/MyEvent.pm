@@ -294,11 +294,11 @@ sub _demo_state
     {
     if ($state == $state_id)
       {
-      $group->activate();
+      $group->{$state_id}->activate();
       }
     else
       {
-      $group->deactivate();
+      $group->{$state_id}->deactivate();
       # or use this: $group->{$state_id}->for_each ('deactivate');
       }
     }

@@ -13,6 +13,7 @@ use SDL::App::FPS qw/
   BUTTON_MOUSE_RIGHT
   /;
 use SDL::Event;
+use SDL::App::FPS::Color qw/BLACK WHITE/;
 
 use vars qw/@ISA/;
 @ISA = qw/SDL::App::FPS/;
@@ -152,7 +153,7 @@ sub post_init_handler
  
   $self->{rectangles} = [];
   
-  $self->{black} = new SDL::Color (-r => 0, -g => 0, -b => 0);
+  $self->{black} = BLACK();
   $self->{PI} = 3.141592654;
 
   # from time to time add a rectangle
@@ -181,19 +182,19 @@ sub post_init_handler
          $self->ramp_time_warp (1, 2000); 
        } );
     });
-  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, LEFTMOUSEBUTTON, 
+  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_LEFT, 
    sub {
      my $self = shift;
      return if $self->time_is_ramping() || $self->time_is_frozen();
      $self->ramp_time_warp('2',1500);		# ramp up
      });
-  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, RIGHTMOUSEBUTTON, 
+  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_RIGHT, 
    sub {
      my $self = shift;
      return if $self->time_is_ramping() || $self->time_is_frozen();
      $self->ramp_time_warp('0.3',1500);		# ramp down
      });
-  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, MIDDLEMOUSEBUTTON, 
+  $self->add_event_handler (SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_MIDDLE, 
    sub {
      my $self = shift;
      return if $self->time_is_ramping() || $self->time_is_frozen();
@@ -233,7 +234,7 @@ sub _demo_add_shot
   
   $k->{x_s} = $k->{x};		 # start x
   $k->{y_s} = $k->{y};		 # start y
-  $k->{color} = new SDL::Color ( -r => 0xff, -g => 0xff, -b => 0xff );
+  $k->{color} = WHITE;
   $k->{rect} = SDL::Rect->new();
   push @{$self->{rectangles}}, $k;
   }

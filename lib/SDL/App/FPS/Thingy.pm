@@ -8,10 +8,10 @@ package SDL::App::FPS::Thingy;
 use strict;
 
 use Exporter;
-use vars qw/@ISA $VERSION @EXPORT_OK/;
+use vars qw/@ISA $VERSION/;
 @ISA = qw/Exporter/;
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
   {
   my $id = 1;

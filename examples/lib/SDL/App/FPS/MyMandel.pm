@@ -13,7 +13,7 @@ use SDL::App::FPS qw/
   BUTTON_MOUSE_RIGHT 
   /;
 use SDL::Event;
-#use SDL::App::FPS::EventHandler;
+use SDL::App::FPS::Color qw/BLACK/;
 
 use vars qw/@ISA/;
 @ISA = qw/SDL::App::FPS/;
@@ -35,6 +35,7 @@ sub _mandel_recursive
     # once we are done, we enter stage 2
     if ($self->{done} == 0)
       {
+      print "\nDoing $self->{x1} , $self->{y1} ... $self->{x2} , $self->{y2}\n";
       # calculate the upper line
       for my $x (0 .. $self->{width}-1)
         {
@@ -89,11 +90,24 @@ sub _mandel_recursive
   RECTANGLE:
    while (@{$self->{stack}} > 0)
     {
-    return if ($self->app()->ticks() - $now > 150);
-    # access current rectangle
-    print "\rRectangles still todo: ",scalar @{$self->{stack}},"    ";
+    if ($self->app()->ticks() - $now > 150)
+      {
+      # calculate how many % we already did. By summing up all the rectangles
+      # on the stack (not taking their borders into account due to overlap) we
+      # find out much we must still do
+      my $sum = 0;
+      foreach my $r (@{$self->{stack}})
+        {
+        $sum += ($r->[2]-$r->[0]-2) * ($r->[3]-$r->[1]-2);
+        }
+      $sum = $self->width() * $self->height() - $sum;
+      print "\rRectangles still todo: ",scalar @{$self->{stack}}," ";
+      print
+       int($sum * 10000 / ($self->width() * $self->height()))/100,"% done    ";
+      return;
+      }
 
-    # take current from stack 
+    # access current rectangle and take it from stack 
     my ($xl,$yl,$xr,$yr,$level) = @{ shift @{$self->{stack}} };
     #print "Now at level $level, $xl, $yl => $xr, $yr\n";
     my $w = ($xr-$xl);
@@ -186,7 +200,8 @@ sub _mandel_recursive
         } while (++$x < $xr);
       }
     }
-  print " (points drawn $self->{points})\n";
+  print "\r Done. Calculated $self->{points} of ",
+   $self->width()*$self->height(), " points.       \n";
   print "Took ",int(($self->app()->ticks - $self->{start}) / 10)/100,
    " seconds\n";
   $self->{points} = 0;
@@ -346,13 +361,15 @@ sub resize_handler
 
   $self->{width} = $self->width();
   $self->{height} = $self->height();
+  $self->_mandel_reset();
+  print "Window resized!";
   }
 
 sub post_init_handler
   {
   my $self = shift;
  
-  $self->{black} = new SDL::Color (-r => 0, -g => 0, -b => 0);
+  $self->{black} = BLACK;
 
   $SDL::DEBUG = 0;  			# disable debug, it slows us down
   $self->_mandel_setup();
@@ -378,9 +395,6 @@ sub post_init_handler
     $self->add_event_handler (SDL_KEYDOWN, SDLK_s, 
      sub { my $self = shift; $self->_mandel_setup(); $self->_mandel_reset(); }),
     
-    $self->add_event_handler (SDL_VIDEORESIZE, 0, 
-     sub { my $self = shift; $self->_mandel_setup(); $self->_mandel_reset(); }),
-
     $self->add_event_handler (SDL_KEYDOWN, SDLK_1, 
      sub {
       my $self = shift; $self->{method} = \&_mandel_iterative;
@@ -401,9 +415,9 @@ sub post_init_handler
        $self->_mandel_reset();
        }),
 
-    $self->add_event_handler (SDL_MOUSEBUTTONDOWN, LEFTMOUSEBUTTON, 
+    $self->add_event_handler (SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_LEFT, 
      \&_mandel_zoom, 5),
-    $self->add_event_handler (SDL_MOUSEBUTTONDOWN, RIGHTMOUSEBUTTON, 
+    $self->add_event_handler (SDL_MOUSEBUTTONDOWN, BUTTON_MOUSE_RIGHT, 
      \&_mandel_zoom, 1/2),
 
     );

@@ -13,6 +13,10 @@ use SDL::App::FPS qw/
   BUTTON_MOUSE_RIGHT
   /;
 use SDL::Event;
+use SDL::App::FPS::Button qw/
+  BUTTON_DOWN
+  BUTTON_RECTANGULAR
+  /;
 
 use vars qw/@ISA/;
 @ISA = qw/SDL::App::FPS/;
@@ -221,6 +225,7 @@ sub _demo_add_rect
    $self->add_button(
      int($k->{x} + ($k->{w} / 2)), int($k->{y} + ($k->{h} / 2)),
      $k->{w}, $k->{h},
+    BUTTON_DOWN, BUTTON_RECTANGULAR, BUTTON_MOUSE_LEFT,
     sub { 
      my ($self,$button,$id) = @_;
      $self->del_button($button);

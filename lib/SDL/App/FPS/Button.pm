@@ -21,7 +21,9 @@ $VERSION = '0.01';
   BUTTON_OUT
   BUTTON_HOVER
   BUTTON_PRESSED
+  BUTTON_DOWN
   BUTTON_RELEASED
+  BUTTON_UP
   BUTTON_CLICK
 
   BUTTON_RECTANGULAR
@@ -36,15 +38,17 @@ sub BUTTON_IN () 	{ 1; }
 sub BUTTON_OUT () 	{ 2; }
 sub BUTTON_HOVER () 	{ 4; }
 sub BUTTON_PRESSED () 	{ 8; }
+sub BUTTON_DOWN () 	{ 8; }
 sub BUTTON_RELEASED () 	{ 16; }
+sub BUTTON_UP () 	{ 16; }
 sub BUTTON_CLICK ()	{ 32; }
 
 sub BUTTON_RECTANGULAR ()	{ 0; }
 sub BUTTON_ELLIPTIC ()		{ 1; }
 
 sub BUTTON_MOUSE_LEFT ()	{ 1; }
-sub BUTTON_MOUSE_RIGHT ()	{ 2; }
-sub BUTTON_MOUSE_MIDDLE ()	{ 4; }
+sub BUTTON_MOUSE_RIGHT ()	{ 4; }
+sub BUTTON_MOUSE_MIDDLE ()	{ 2; }
 
 sub _init
   {
@@ -74,6 +78,20 @@ sub _init
     $self->{x2} = $self->{x} + int($self->{w} / 2); 
     $self->{y2} = $self->{y} + int($self->{h} / 2); 
     }
+
+  if (($self->{type} & BUTTON_CLICK) != 0)
+    {
+    $self->{click_event_state} = 0;			# reset state
+    }
+  if (($self->{type} & BUTTON_OUT) != 0)
+    {
+    $self->{out_event_state} = 0;			# reset state (is out)
+    }
+  if (($self->{type} & BUTTON_IN) != 0)
+    {
+    $self->{in_event_state} = 1;			# reset state (is out)
+    }
+
   $self->{args} = [ @args ];
   $self;
   }
@@ -189,12 +207,107 @@ sub check ($$)
 
   return unless defined $callback;	# no callback given
 
+  # one of the "click" watcher?
+  if (($self->{type} & (BUTTON_CLICK+BUTTON_UP+BUTTON_DOWN)) != 0)
+    {
+    # yes, and we ignore mouse motion events
+    return unless $type == SDL_MOUSEBUTTONUP || $type == SDL_MOUSEBUTTONDOWN;
+    # check that the required button was pressed
+    my $button = $event->button();
+    return unless ($button & $self->{button}) != 0;
+    }
+  else
+    {
+    # no, one of the motion watchers and these ignore clicks
+    return if $type == SDL_MOUSEBUTTONUP || $type == SDL_MOUSEBUTTONDOWN;
+    }
+
+  # so we now know this event is important for us
+
+  # check whether mouse is inside or outside
   my $x = $event->motion_x();  
   my $y = $event->motion_y();  
-  if (\&{$self->{hit}}($self,$x,$y))
+  my $hit = &{$self->{hit}}($self,$x,$y);
+
+  my $call = 0;						# don't callback
+
+  if ($hit)
     {
-    &{$callback}($self->{app},$self,@{$self->{args}});
+    # ptr inside area
+
+    # BUTTON_CLICK events (these care only about hits):
+  
+    if (($self->{type} & BUTTON_CLICK) != 0)
+      {
+      if (($self->{click_event_state} == 0) && ($type == SDL_MOUSEBUTTONDOWN))
+        {
+        $self->{click_event_state} ++;
+        }
+      if (($self->{click_event_state} == 1) && ($type == SDL_MOUSEBUTTONUP))
+        {
+        # first down, now up => callback
+        $call = 1;					# do callback
+        $self->{click_event_state} = 0;			# reset state
+        }
+      }
+
+    # BUTTON_UP events
+    if ((($self->{type} & BUTTON_UP) != 0) && ($type == SDL_MOUSEBUTTONUP))
+      {
+      $call = 1;					# do callback
+      }
+    
+    # BUTTON_DOWN events
+    if ((($self->{type} & BUTTON_DOWN) != 0) && ($type == SDL_MOUSEBUTTONDOWN))
+      {
+      $call = 1;					# do callback
+      }
+
+    # BUTTON_HOVER events
+    if ((($self->{type} & BUTTON_HOVER) != 0))
+      {
+      $call = 1;					# do callback
+      }
+    
+    # BUTTON_OUT events
+    if ((($self->{type} & BUTTON_OUT) != 0))
+      {
+      $self->{out_event_state} = 1;			# ptr now inside
+      }
+    
+    # BUTTON_IN events
+    if ((($self->{type} & BUTTON_IN) != 0))
+      {
+      if ($self->{in_event_state} != 0)			# last outside?
+        {
+        $self->{in_event_state} = 0;			# reset state
+        $call = 1;					# do callback
+        }
+      }
+
     }
+  else
+    {
+    # ptr outside area
+
+    # BUTTON_OUT events
+    if ((($self->{type} & BUTTON_OUT) != 0))
+      {
+      if ($self->{out_event_state} != 0)		# last inside?
+        {
+        $self->{out_event_state} = 0;			# reset state
+        $call = 1;					# do callback
+        }
+      }
+
+    # BUTTON_IN events
+    if ((($self->{type} & BUTTON_IN) != 0))
+      {
+      $self->{in_event_state} = 1;			# ptr now outside
+      }
+    }
+
+  &{$callback}($self->{app},$self,@{$self->{args}}) if $call != 0;
   }
 
 1;
@@ -226,8 +339,8 @@ Event types:
   BUTTON_IN
   BUTTON_OUT
   BUTTON_HOVER
-  BUTTON_PRESSED
-  BUTTON_RELEASED
+  BUTTON_DOWN
+  BUTTON_UP
   BUTTON_CLICK
 
 Button shapes:
@@ -280,8 +393,8 @@ C<$type> is one of the following event types:
 	BUTTON_HOVER	 Happens whenever the mouse is moved and the
 			 pointers final position is inside the area
 			 In most cases you want to use BUTTON_IN instead
-	BUTTON_PRESSED	 A mouse button was pressed inside the area
-	BUTTON_RELEASED	 A mouse button was released inside the area
+	BUTTON_DOWN	 A mouse button was pressed inside the area
+	BUTTON_UP	 A mouse button was released inside the area
 	BUTTON_CLICK	 A mouse button was pressed inside the area and
 			 then released again inside the area
 
@@ -292,7 +405,7 @@ You can use C<||> or C<+> add them together, the callback will then happen
 when any one of these events occured:
 
 	my $button = SDL::App::FPS::Button->new(
-		$app,$x,$y,$w,$h,BUTTON_PRESSED+BUTTON_RELEASED,
+		$app,$x,$y,$w,$h,BUTTON_DOWN+BUTTON_UP,
 		$button,$shape,$callback,@args);
 
 Please note that for a single click inside the area, both pressed and

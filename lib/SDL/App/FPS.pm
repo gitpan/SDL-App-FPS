@@ -26,7 +26,7 @@ use vars qw/@ISA $VERSION @EXPORT_OK/;
 
 @EXPORT_OK = qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE/;
 
-$VERSION = '0.11';
+$VERSION = '0.12';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -1365,6 +1365,12 @@ Delete the given timer (or the one by the given id).
 =item timers()
 
 Return count of active timers.
+
+=item add_button
+
+	$app->add_button ($x,$y,$w,$h, $type, $shape, $button, $callback);
+
+Add a SDL::App::FPS::Button to the application.
 
 =item add_group
 

@@ -169,6 +169,19 @@ SDL::App::FPS:
  button.pl and MyButt.pm:
   * added a simple click'n'kill game to show SDL::App::FPS::Button usage
 
+2003-01-05 v0.12 Tels - 190 tests
+ Library:
+  * fixed all the outstandind issues with Button, all combinations now work
+  * added: BUTTON_DOWN and BUTTON_UP (for BUTTON_RELEASED and BUTTON_PRESSED)
+  * documented add_button() in FPS.pm
+  * added SDL::App::FPS::Color inclusive tests
+  * fixed stupid definition bug in BUTTON_MOUSE_*
+ Demos:
+  * added mouse.pl and MyMouse.pm to show off advanced Button features
+  * added color.pl and MyColor.pm to show off colors
+  * mandel.pl shows percentage of already done area in recursive mode
+  * fixed event.pl (I know should try things before releasing them..)
+
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

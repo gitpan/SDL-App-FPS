@@ -23,6 +23,8 @@ SDL::App::FPS:
   300 FPS, where we will start burnign 100% CPU to achive as much FPS as
   possible, which we wanted to avoid. However, capping at 300 FPS already is
   overkill....120 FPS or les (monitor refresh!) is much more usefull...
+* event handler in FPS.pm needs to reverse order of events (e.g. poll all,
+  then hand them to the event handlers)? Really?
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

@@ -248,6 +248,11 @@ SDL::App::FPS:
 	    added get_clock(), set_clock() and clock_to_ticks()
   * Thingy: has field name (w/ default) and accessor method name()
   * Group: method named(), returning one or more matching members by that name
+
+2003-03-10 v0.16 Tels - 265 tests
+  * document the Group->named() method
+  * opengl example: fix secondary rotation (instead of secondary wiggling)
+  * added modelview example: show MD2 models using Games::3D::Model
             
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

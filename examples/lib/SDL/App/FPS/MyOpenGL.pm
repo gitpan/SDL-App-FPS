@@ -16,7 +16,6 @@ use SDL::App::FPS qw/
   BUTTON_MOUSE_RIGHT
   /;
 use SDL::Event;
-use SDL::App::FPS::Color qw/BLACK WHITE GRAY darken lighten blend/;
 
 use vars qw/@ISA/;
 @ISA = qw/SDL::App::FPS/;
@@ -36,7 +35,7 @@ sub _gl_draw_cube
   # compute the current angle based on elapsed time
 
   my $angle = ($self->current_time() / 5) % 360;
-  my $other = $angle % 5;
+  my $other = ($self->current_time() / 7) % 360;
 
   glRotate($angle,1,1,0);
   glRotate($other,0,1,1);
@@ -65,14 +64,17 @@ sub _gl_init_view
 
   glMatrixMode(GL_MODELVIEW());
   glLoadIdentity();
+  
+  glEnable(GL_CULL_FACE);
+  glFrontFace(GL_CCW);
+  glCullFace(GL_BACK);
+
   }
 
 sub draw_frame
   {
   # draw one frame, usually overrriden in a subclass.
   my ($self,$current_time,$lastframe_time,$current_fps) = @_;
-
-  #$self->pause(SDL_KEYDOWN);	# we don't draw anything
 
   # using pause() would be a bit more efficient, though 
   return if $self->time_is_frozen();
@@ -86,7 +88,7 @@ sub resize_handler
   {
   my $self = shift;
 
-  glViewport(0,0,$self->width(),$self->height());
+  $self->_gl_init_view();
   }
 
 sub post_init_handler
@@ -94,10 +96,6 @@ sub post_init_handler
   my $self = shift;
 
   $self->_gl_init_view();
-
-  glEnable(GL_CULL_FACE);
-  glFrontFace(GL_CCW);
-  glCullFace(GL_BACK);
 
   $self->{cube} = SDL::OpenGL::Cube->new();
 

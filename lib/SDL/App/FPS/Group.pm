@@ -287,6 +287,18 @@ This deregisters all members of the group with the application and then deletes
 all ptrs the group has to the members. In case the group was the only container
 holding these members, they will be destroyed and their memory freed.
 
+=item named
+
+	my @objects = $group->named($name);
+
+
+Return a list of names that match the given one, in scalar context
+returns the first match.
+
+Give the name to match as string, and an exact, case-sensitive match
+will be searched. For substring matches, or case-insensitive ones give
+a quoted regular expression (using qr//). Returns undef if no match was found.
+
 =back
 
 =head1 BUGS

@@ -25,6 +25,19 @@ SDL::App::FPS:
  * added ramp_time_warp(), stop_time_warp_ramp()
  * added freeze_time(), thaw_time()
 
+2002-12-26 v0.03 Tels - 11 tests
+ * added time_is_frozen(), time_is_ramping()
+ * added pause() to pause application until some or an specific event occured
+   (the SDL_QUIT event will always end the pause and then the application)
+ * added examples/ with Kcirb.pl and subclass for it
+ * main loop ends when $self->{quit} is true, to avoid hanging at end when
+   there are no more events
+ * moved post_init_handler() after initializing $self->{now} et al.
+ * renamed update() to next_frame() and added update() to call {app}->update()
+ * added app(), width() and height()
+ * added min_fps(), max_fps()
+ * added min_frame_time(), max_frame_time()
+
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!
 

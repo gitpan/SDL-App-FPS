@@ -7,6 +7,14 @@ SDL::App::FPS:
 * stop_time_warp_ramp() is fine, but we also need
   freeze_time_warp_ramp() and unfreeze_time_warp_ramp()
 * inline _ramp_time_warp() into update() for more speed?
+* add a resize_handler() hook ?
+* add a fullscreen_toggled_handler() hook ?
+* the time per frame currently (on my system) sways wildly from 11 to 47 ms
+  when trying to draw at most 60 fps. This probably accounts for the jerky
+  movement in the demo application. Not sure if this is a kernel-timer problem
+  or something in my code. I guess I need somehow sub-ms delay or at least an
+  delay routine that does not suddenly delay for 10 or 20 ms longer than it
+  should...(Hm, disabling xmms and any background app still does not help...)
 
 Please send me test-reports, your experiences with this and your ideas - I love
 to hear about my work!

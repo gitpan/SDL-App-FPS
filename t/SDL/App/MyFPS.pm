@@ -48,6 +48,7 @@ sub post_init_handler
   {
   my $self = shift;
   $self->{myfps}->{post_init_handler}++;
+  $self->{myfps}->{now} = $self->{now};	# test that now was initialized
   $self;
   }
 

@@ -3,6 +3,8 @@ MANIFEST
 README
 SIGNATURE
 TODO
+examples/Kcirb.pl
+examples/lib/SDL/App/FPS/Kcirb.pm
 Makefile.PL
 lib/SDL/App/FPS.pm
 t/SDL/App/MyFPS.pm

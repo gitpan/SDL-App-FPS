@@ -16,7 +16,7 @@ use Exporter;
 use vars qw/@ISA $VERSION/;
 @ISA = qw/Exporter/;
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 sub new
   {
@@ -27,13 +27,14 @@ sub new
   $self->_init(@_);			# parse options
   $self->pre_init_handler();
   $self->create_window();
-  $self->post_init_handler();
   
   $self->{now} = SDL::GetTicks();
   $self->{start_time} = $self->{now};		# for time_warp
   $self->{current_time} = $self->{now};		# warped clock (current frame)
   $self->{lastframe_time} = $self->{now};	# warped clock (last frame)
   $self->{lastframes} = [ $self->{now} ];
+
+  $self->post_init_handler();
 
   $self;
   }
@@ -87,6 +88,10 @@ sub _init
   $self->{min_time} = 1000 / $opt->{max_fps};
   # contains the FPS avaraged over the last second
   $self->{current_fps} = 0;
+  $self->{min_fps} = 10000;			# insanely high to get lower
+  $self->{max_fps} = 0;				# insanely low to get higher
+  $self->{min_frame_time} = 10000; 		# how long per frame min?
+  $self->{max_frame_time} = 0; 			# how long per frame max?
   $self->{wake_time} = 0;			# adjust for fps capping
   $self->{frames} = 0;				# number of frames
   $self->{fps_monitor_time} = 1000;		# 1 second (hardcode for now)
@@ -119,6 +124,30 @@ sub option
     }
   return undef unless exists $opt->{$key};
   $opt->{$key};
+  }
+
+sub width
+  {
+  my $self = shift;
+  return $self->{app}->width();
+  }
+
+sub height
+  {
+  my $self = shift;
+  return $self->{app}->height();
+  }
+
+sub update
+  {
+  my $self = shift;
+  return $self->{app}->update(@_);
+  }
+
+sub app
+  {
+  my $self = shift;
+  return $self->{app};
   }
 
 sub fullscreen
@@ -160,6 +189,22 @@ sub freeze_time
   $self->{time_warp} = 0;
   # disable ramping
   $self->{ramp_warp_time} = 0;
+  }
+
+sub time_is_frozen
+  {
+  # return true if the time is currently frozen
+  my $self = shift;
+
+  return $self->{time_warp} == 0;
+  }
+
+sub time_is_ramping
+  {
+  # return true if the time warp is currently ramping (changing)
+  my $self = shift;
+
+  return $self->{ramp_warp_time} != 0;
   }
 
 sub thaw_time
@@ -259,6 +304,38 @@ sub current_fps
   $self->{current_fps};
   }
 
+sub min_fps
+  {
+  # return minimum fps we ever achieved
+  my $self = shift;
+
+  $self->{min_fps};
+  }
+
+sub max_fps
+  {
+  # return maximum fps we ever achieved
+  my $self = shift;
+
+  $self->{max_fps};
+  }
+
+sub max_frame_time
+  {
+  # return maximum time per frame ever
+  my $self = shift;
+
+  $self->{max_frame_time};
+  }
+
+sub min_frame_time
+  {
+  # return minimum time per frame ever
+  my $self = shift;
+
+  $self->{min_frame_time};
+  }
+
 sub frames
   {
   # return number of frames already drawn
@@ -293,7 +370,7 @@ sub lastframe_time
   $self->{lastframe_time};
   }
 
-sub update
+sub next_frame
   {
   my $self = shift;
   
@@ -350,6 +427,13 @@ sub update
 
   # remember $now
   push @{$self->{lastframes}}, $self->{now};
+  # track min/max time between two frames
+  my $frame_diff = $self->{now} - $self->{lastframes}->[-2];
+  $self->{min_frame_time} = $frame_diff 
+   if $frame_diff < $self->{min_frame_time}; 
+  $self->{max_frame_time} = $frame_diff 
+   if $frame_diff > $self->{max_frame_time}; 
+
   # keep only frame times over the last X milliseconds
   while ($self->{lastframes}->[0] < ($self->{now} - $self->{fps_monitor_time}))
     {
@@ -359,6 +443,15 @@ sub update
   # calculate current_fps
   my $time = $self->{lastframes}->[-1] - $self->{lastframes}->[0] + 1;
   $self->{current_fps} = 1000 * scalar @{$self->{lastframes}} / $time;
+  # update these timers only when the time to track the framerate was long
+  # enough to make sense
+  if ($time > 800)
+    {
+    $self->{min_fps} = $self->{current_fps} if
+     $self->{current_fps} < $self->{min_fps}; 
+    $self->{max_fps} = $self->{current_fps} if
+     $self->{current_fps} > $self->{max_fps}; 
+    }
 
   # now do something that takes time, like updating the world and drawing it
   $self->draw_frame(
@@ -392,15 +485,43 @@ sub quit
   $self->{quit} = 1;		# make next handle_events quit
   }
 
+sub pause
+  {
+  # can be called to let the application to wait for the next event
+  my $self = shift;
+
+  if (@_ == 0)
+    {
+    $self->{event}->wait();
+    $self->handle_event($self->{event});	# give handler a chance
+    }
+  else
+    {
+    my $type;
+    while ($self->{event}->wait())
+      {
+      $type = $self->{event}->type();
+      if ($type == SDL_QUIT)			# don't ignore this one
+        {
+        $self->{quit} = 1; last;		# quit ASAP
+        }
+      foreach my $t (@_)
+        {
+        return if ($t == $type);		# end pause
+        }
+      }
+    }
+  }
+
 sub main_loop
   {
   my $self = shift;
 
   # TODO:
   # don't call handle_events() when there are no events? Does this matter?
-  while ($self->handle_events() == 0)
+  while (!$self->{quit} && $self->handle_events() == 0)
     {
-    $self->update();		# update the screen and fps monitor
+    $self->next_frame();		# update the screen and fps monitor
     }
   $self->quit_handler();
   }
@@ -585,9 +706,43 @@ desires.
 Set a flag to quit the application at the end of the current frame. Can be
 called in L<draw_frame()>, for instance.
 
+=item pause()
+
+	$app->pause();
+	$app->pause(SDL_KEYDOWN);
+
+Pauses the application until the next event occurs. Given an optional event
+type (like SDL_KEYDOWN), it will wait until this event happens. All
+other events will be ignored, with the exception of SDL_QUIT.
+
 =item fullscreen()
 
 Toggle the application's fullscreen status.
+
+=item width()
+
+	my $w = $self->width();
+
+Return the current width of the applications surface.
+
+=item height()
+
+	my $w = $self->height();
+
+Return the current height of the applications surface.
+
+=item update()
+
+	$self->update($rect);
+
+Call the SDL::App's update method.
+
+=item app()
+
+	my $sdl_app = $self->app();
+
+Return a pointer to the SDL application object. Usefull for calling it's
+methods.
 
 =item main_loop()
 
@@ -689,6 +844,22 @@ The new time warp will be effective from the next frame onwards.
 
 Please note that setting a time warp factor will disable time warp ramping.
 
+=item time_is_ramping
+
+	if ($app->time_is_ramping())
+	  {
+	  }
+
+Returns true if the time warp factor is currently beeing ramped, e.g. chaning.
+
+=item time_is_frozen
+
+	if ($app->time_is_frozen())
+	  {
+	  }
+
+Return true if the time is currently frozen, e.g. the clock is standing still.
+
 =item frames()
 
 Return number of frames drawn since start of app. 
@@ -700,6 +871,14 @@ Return the time when the application started in ticks.
 =item current_fps()
   
 Return current number of frames per second, averaged over the last 1000ms.
+
+=item max_fps()
+  
+Return maximum number of frames per second we ever achieved.
+
+=item min_fps()
+  
+Return minimum number of frames per second we ever achieved.
 
 =item now()
 
@@ -719,7 +898,7 @@ only change at the start of each frame.
 Return time at the start of the last frame. See current_time(). The same value
 is passed to L<draw_frame()>.
 
-=item update
+=item next_frame
 
 Updates the FPS monitoring process, the frame counter, the average frame rate,
 and then calls L<draw_frame()>.

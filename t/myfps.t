@@ -47,6 +47,7 @@ can_ok ('SDL::App::MyFPS', qw/
   /);
 
 use SDL::Event;
+use SDL;
 
 my $options = { width => 640, height => 480, depth => 24, max_fps => 60};
 
@@ -78,7 +79,7 @@ $app->main_loop();
 is ($app->{myfps}->{quit_handler},1, 'quit_handler() run once');
 is ($app->{myfps}->{pre_init_handler},1, 'pre_init_handler() run once');
 is ($app->{myfps}->{post_init_handler},1, 'post_init_handler() run once');
-is ($app->{myfps}->{drawcounter},100, 'drawn 100 frames');
+is ($app->{myfps}->{drawcounter}, 100, 'drawn 100 frames');
 is ($app->{myfps}->{now} == 0, 1, 'now was initialized to 0');
 is ($app->{myfps}->{timer_fired}, 1, 'timer fired once');
 is ($app->time_warp(), 1, 'time_warp is 1.0');
@@ -99,12 +100,15 @@ is ($app->fullscreen(0), 0, 'back to windowed mode');
 is ($app->max_frame_time() > 1, 1, 'max_frame_time was set');
 is ($app->min_frame_time() < 1000, 1, 'min_frame_time was set');
 
-# we cap at 60 frames, so the framerate should not be over 65 (some extra due
+# we cap at 60 frames, so the framerate should not be over 75 (some extra due
 # to timer inaccuracies) and not below 10
-is ($app->current_fps() < 65, 1, 'fps < 65');
+is ($app->current_fps() < 75, 1, 'fps < 75');
 is ($app->current_fps() > 10, 1, 'fps > 10');
+print STDERR "# current_fps: ", $app->current_fps(),"\n";
+print STDERR "# max_fps: ", $app->max_fps(),"\n";
+print STDERR "# min_fps: ", $app->min_fps(),"\n";
 is ($app->min_fps() > 10, 1, 'min fps > 10');
-is ($app->max_fps() < 65, 1, 'max fps < 10');
+is ($app->max_fps() < 75, 1, 'max fps < 10');
 
 # test that adding timer really adds more of them
 my $timer1 = $app->add_timer( 2000,1,200, 0, sub {});

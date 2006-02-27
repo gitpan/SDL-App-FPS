@@ -3,14 +3,14 @@
 
 package SDL::App::FPS::MyEvent;
 
-# (C) 2002 by Tels <http://bloodgate.com/>
+# (C) 2002, 2006 by Tels <http://bloodgate.com/>
 
 use strict;
 
 use SDL::App::FPS qw/
   BUTTON_MOUSE_LEFT
   /;
-use SDL::Event;
+use SDL;
 use SDL::App::FPS::EventHandler; 
 
 use vars qw/@ISA/;

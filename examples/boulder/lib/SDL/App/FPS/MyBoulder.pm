@@ -3,7 +3,7 @@
 
 package SDL::App::FPS::MyBoulder;
 
-# (C) 2002 by Tels <http://bloodgate.com/>
+# (C) 2002,2006 by Tels <http://bloodgate.com/>
 
 use strict;
 
@@ -12,7 +12,7 @@ use SDL::App::FPS qw/
   BUTTON_MOUSE_MIDDLE
   BUTTON_MOUSE_RIGHT
   /;
-use SDL::Event;
+use SDL;
 use SDL::App::FPS::Button qw/
   BUTTON_IN
   BUTTON_OUT

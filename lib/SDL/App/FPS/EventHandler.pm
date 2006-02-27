@@ -14,9 +14,9 @@ use vars qw/@ISA $VERSION @EXPORT_OK/;
 
 @EXPORT_OK = qw/char2key char2type_kind FPS_EVENT/;
 
-use SDL::Event;
+use SDL;
 
-$VERSION = '0.04';
+$VERSION = '0.05';
 
 ##############################################################################
 # constants
@@ -203,7 +203,7 @@ my $char2key = {
   n => SDLK_n,
   o => SDLK_o,
   p => SDLK_p,
-  q => SDLK_q,
+  q => SDLK_q(),
   r => SDLK_r,
   s => SDLK_s,
   t => SDLK_t,
@@ -297,7 +297,8 @@ sub char2key
   return $char2key->{$char} if exists $char2key->{$char};
   if ($char =~ /^[A-Z]A-Z+/)
     {
-    return eval "SDLK_$char()";
+    $char = 'SDLK_' . $char if $char =~ /^SDLK_/;
+    return eval "$char()";
     }
   return;  
   }
@@ -335,9 +336,15 @@ sub char2type_kind
     return ($type, $key);
     }
 
+  # if passed something like "123", user passed SDLK_foo() as key.
+  return ($type,$key) if $key =~ /^\d{2,}\z/;
+
   return ($type,$char2key->{$key}) if exists $char2key->{$key};
-  my $char = eval "SDLK_$key()"; 
-  return ($type, $char);
+
+  $key = "SDLK_$key" unless $key =~ /^SDLK_/;
+
+  my $char = eval "$key()"; 
+  ($type, $char);
   }
 
 1;
@@ -558,7 +565,7 @@ the type (SDL_KEYDOWN or SDL_MOUSEBUTTONDOWN).
 
 =head1 AUTHORS
 
-(c) 2002, 2003, Tels <http://bloodgate.com/>
+(c) 2002, 2003, 2006, Tels <http://bloodgate.com/>
 
 =head1 SEE ALSO
 

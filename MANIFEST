@@ -6,7 +6,6 @@ README
 SIGNATURE
 LICENSE
 TODO
-NEW
 examples/boulder/boulder.pl
 examples/boulder/data/level0001.txt
 examples/boulder/save/quicksave.txt
@@ -35,6 +34,7 @@ examples/lib/SDL/App/FPS/MyMouse.pm
 examples/lib/SDL/App/FPS/MyColors.pm
 examples/lib/SDL/App/FPS/MyKeyCheck.pm
 examples/lib/SDL/App/FPS/MyOpenGL.pm
+examples/lib/SDL/OpenGL/Cube.pm
 Makefile.PL
 FPS.xs
 lib/SDL/App/FPS.pm
@@ -60,3 +60,15 @@ t/config/client.cfg
 t/config/test.cfg
 t/test-data/fps.fnt
 t/test-data/console.fnt
+META.yml				# Module meta-data
+inc/Module/AutoInstall.pm
+inc/Module/Install.pm
+inc/Module/Install/AutoInstall.pm
+inc/Module/Install/Base.pm
+inc/Module/Install/Can.pm
+inc/Module/Install/Fetch.pm
+inc/Module/Install/Include.pm
+inc/Module/Install/Makefile.pm
+inc/Module/Install/Metadata.pm
+inc/Module/Install/Win32.pm
+inc/Module/Install/WriteAll.pm

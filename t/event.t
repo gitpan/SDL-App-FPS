@@ -24,11 +24,13 @@ can_ok ('SDL::App::FPS::EventHandler', qw/
 
 use SDL::Event;
 use SDL::App::FPS::Button qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT/;
+use SDL;
 
 ##############################################################################
 package DummyEvent;
 
 use SDL::Event;
+use SDL;
 # a dummy event package to simulate an SDL::Event
 
 sub new { bless { }, 'DummyEvent'; }
@@ -40,6 +42,7 @@ sub key_mod { 0; }
 package DummyEventMouse;
 
 use SDL::Event;
+use SDL;
 # a dummy event package to simulate an SDL::Event
 
 sub new { bless { button => $_[1] }, 'DummyEventMouse'; }

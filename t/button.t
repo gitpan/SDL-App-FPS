@@ -37,6 +37,7 @@ can_ok ('SDL::App::FPS::Button', qw/
 package DummyEvent;
 
 use SDL::Event;
+use SDL;
 # a dummy event package to simulate an SDL::Event
 
 sub new { bless { }, 'DummyEvent'; }

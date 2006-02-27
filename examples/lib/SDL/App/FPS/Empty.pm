@@ -39,7 +39,7 @@ sub post_init_handler
 
   # set up the event handlers
   $self->watch_event (
-    quit => SDLK_q, fullscreen => SDLK_f, freeze => SDLK_SPACE,
+    quit => 'SDLK_q', fullscreen => 'SDLK_f', freeze => 'SDLK_SPACE',
    ); 
   $self->{last} = $self->current_time();
   }

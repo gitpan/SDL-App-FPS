@@ -3,7 +3,7 @@
 
 package SDL::App::FPS::MyKeyCheck;
 
-# (C) 2003 by Tels <http://bloodgate.com/>
+# (C) 2003,2006 by Tels <http://bloodgate.com/>
 
 use strict;
 
@@ -12,11 +12,10 @@ use SDL::App::FPS qw/
   BUTTON_MOUSE_MIDDLE
   BUTTON_MOUSE_RIGHT
   /;
-use SDL::Event;
+use SDL;
 use SDL::App::FPS::EventHandler qw/char2key/;
 
-use vars qw/@ISA/;
-@ISA = qw/SDL::App::FPS/;
+use base qw/SDL::App::FPS/;
 
 ##############################################################################
 # routines that are usually overriden in a subclass

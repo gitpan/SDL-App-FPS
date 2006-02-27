@@ -33,7 +33,7 @@ is ($app->option('useopengl'), 1, 'useopengl');
 is ($app->option('max_fps'), 15, 'max_fps');
 is ($app->option('time_warp'), '2.1', 'time_warp');
 is ($app->option('useconsole'), '1', 'useconsole');
-is ($app->option('showfps'), '1', 'showfps');
+is ($app->option('show_fps'), '1', 'show_fps');
 
 ##############################################################################
 $app = SDL::App::MyFPS->new( );
@@ -52,7 +52,7 @@ is ($app->option('resizeable'), 1, 'rsizeable');
 is ($app->option('max_fps'), 25, 'max_fps');
 is ($app->option('time_warp'), 1, 'time_warp');
 is ($app->option('useconsole'), '0', 'useconsole');
-is ($app->option('showfps'), '0', 'showfps');
+is ($app->option('show_fps'), '0', 'show_fps');
 
 ##############################################################################
 $app = SDL::App::MyFPS->new( config => 'non-existant' );

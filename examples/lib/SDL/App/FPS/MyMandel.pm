@@ -3,7 +3,7 @@
 
 package SDL::App::FPS::MyMandel;
 
-# (C) 2002 by Tels <http://bloodgate.com/>
+# (C) 2002, 2006 by Tels <http://bloodgate.com/>
 
 use strict;
 
@@ -12,11 +12,11 @@ use SDL::App::FPS qw/
   BUTTON_MOUSE_MIDDLE
   BUTTON_MOUSE_RIGHT 
   /;
-use SDL::Event;
+use SDL;
 use SDL::App::FPS::Color qw/BLACK/;
 
-use vars qw/@ISA $use_perl/;
-@ISA = qw/SDL::App::FPS/;
+use vars qw/$use_perl/;
+use base qw/SDL::App::FPS/;
 
 sub use_perl
   {
@@ -126,8 +126,9 @@ sub _mandel_recursive
         }
       $sum = $self->width() * $self->height() - $sum;
       print "\rRectangles still todo: ",scalar @{$self->{stack}}," ";
-      print
-       int($sum * 10000 / ($self->width() * $self->height()))/100,"% done    ";
+      my $percent = int($sum * 10000 / ($self->width() * $self->height()))/100 . "%";
+      print "$percent done    ";
+      $self->app()->title("Mandel $percent done");
       return;
       }
 
@@ -161,14 +162,17 @@ sub _mandel_recursive
         if ($border != 0)
           {
           # color it and stop dividing it
-          my $c = new SDL::Color (
-           -r => ($self->{color_bias_red} + $border) & 0xff,
-           -g => ($self->{color_bias_green} + $border) & 0xff,
-           -b => ($self->{color_bias_blue} + $border) & 0xff );
           $rect->x($xl+1);
           $rect->y($yl+1);
           $rect->width($w-1);
           $rect->height($h-1);
+
+	  # re-use SDL::Color object for speed
+          my $c = $self->{color};
+          $c->r(($self->{color_bias_red} + $border) & 0xff);
+          $c->g(($self->{color_bias_green} + $border) & 0xff);
+          $c->b(($self->{color_bias_blue} + $border) & 0xff);
+        
           $self->app()->fill($rect,$c);
           }
         next RECTANGLE;			# done with that
@@ -229,6 +233,7 @@ sub _mandel_recursive
    $self->width()*$self->height(), " points.       \n";
   print "Took ",int(($self->app()->ticks - $self->{start}) / 10)/100,
    " seconds\n";
+  $self->app()->title("SDL::FPS::App Mandel demo");
   $self->{points} = 0;
   $self->{state} = 3;		# all done
   }
@@ -264,7 +269,7 @@ sub _mandel_draw_point
   $self->{points}++;
   return if $color == 0;		# black
 
-  # by reusing a SDL::Color object # we gain speed
+  # by reusing a SDL::Color object we gain speed
   my $c = $self->{color};
   
   $c->r(($self->{color_bias_red} + $color) & 0xff);	
@@ -277,13 +282,13 @@ sub _mandel_draw_point
 sub _mandel_iterative
   {
   # this routine calculates the all points in the mandelbrot fractal in a step
-  # by step manner. It stops after at elast 150 ms
+  # by step manner. It stops after atleast 150 ms
   my $self = shift;
 
   return if $self->{state} != 1;
 
   my $r = $self->{rect}; 
-  #SDL::Rect->new( -x => 0, -y => 0, -width => 1, -height => 1);
+
   my $now = $self->app()->ticks();
   my $w = $self->{width};
   my $h = $self->{height};
@@ -297,19 +302,20 @@ sub _mandel_iterative
       {
       my $x = $self->{x};
       my $color = $self->_mandel_point($x,$y);
-      $r->x($x);
-      $r->y($y);
       if ($color != 0)
         {
         if ($lastcolor != $color)
 	  {
-          $c = new SDL::Color (
-           -r => ($self->{color_bias_red} + $color) & 0xff,	
-           -g => ($self->{color_bias_green} + $color) & 0xff,	
-           -b => ($self->{color_bias_blue} + $color) & 0xff);
+	  # re-use SDL::Color object
+          $c = $self->{color};
+          $c->r( ($self->{color_bias_red} + $color) & 0xff );
+          $c->g( ($self->{color_bias_green} + $color) & 0xff );
+          $c->b( ($self->{color_bias_blue} + $color) & 0xff );
           }
+	# XXX TODO
+        # If there are more than 1 point with the same color, we
+        # could fill a 1-pixel rectangle or draw a line for speed:
         $self->{app}->pixel($x,$y,$c);
-        #$app->fill($r,$c);
         $lastcolor = $color;
         }
       return if ($self->app()->ticks() - $now > 150);
@@ -432,6 +438,7 @@ sub post_init_handler
   my $self = shift;
  
   $self->{black} = BLACK;
+  # cache a SDL::Color object for speed
   $self->{color} = SDL::Color->new();
 
   $SDL::DEBUG = 0;  			# disable debug, it slows us down
@@ -453,7 +460,7 @@ sub post_init_handler
 
   # set up the default event handlers
   $self->watch_event (
-    quit => SDLK_q, fullscreen => SDLK_f, freeze => SDLK_SPACE,
+    quit => 'SDLK_q', fullscreen => 'f', freeze => 'SDLK_SPACE',
    );
 
   # setup the event handlers that are always active

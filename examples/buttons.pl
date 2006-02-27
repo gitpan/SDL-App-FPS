@@ -21,7 +21,7 @@ use SDL::App::FPS::MyButt;	# grab MyButt and use it
 my $options = { width => 800, height => 600, max_fps => 40};
 
 print
-  "Buttons v0.01 (C) 2003 by Tels <http://Bloodgate.com/>\n\n";
+  "Buttons v0.02 (C) 2003, 2006 by Tels <http://Bloodgate.com/>\n\n";
 
 my $app = SDL::App::FPS::MyButt->new( $options );
 $app->main_loop();

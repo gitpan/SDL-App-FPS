@@ -13,7 +13,7 @@ use SDL::App::FPS qw/
   BUTTON_MOUSE_RIGHT
 
   /;
-use SDL::Event;
+use SDL;
 use SDL::App::FPS::Button qw/
   BUTTON_IN
   BUTTON_OUT

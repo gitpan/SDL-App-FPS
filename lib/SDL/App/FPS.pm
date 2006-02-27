@@ -33,7 +33,7 @@ use vars qw/@ISA $VERSION @EXPORT_OK/;
 @EXPORT_OK = qw/BUTTON_MOUSE_LEFT BUTTON_MOUSE_RIGHT BUTTON_MOUSE_MIDDLE
 	BUTTON_MOUSE_WHEEL_DOWN BUTTON_MOUSE_WHEEL_UP FPS_EVENT/;
 
-$VERSION = '0.20';
+$VERSION = '0.21';
 
 bootstrap SDL::App::FPS $VERSION;
 
@@ -65,12 +65,12 @@ sub new
   # switch to fullscreen?
   $self->fullscreen() if $opt->{fullscreen};
  
-  if ($opt->{showfps})
+  if ($opt->{show_fps})
     {
     $app->{fps_font} = $self->_read_font_cfg($opt->{font_fps} || '');
     # 1 and 2 - left, 3 and 4 right
     $app->{fps_font}->align_x(Games::OpenGL::Font::2D::FONT_ALIGN_RIGHT()) 
-      if $opt->{showfps} > 2;
+      if $opt->{show_fps} > 2;
     }
 
   if ($opt->{useconsole})
@@ -240,7 +240,7 @@ sub _init
     useopengl => 0,
     useconsole => 0,
     font_console => 'data/console.fnt',
-    showfps => 0,
+    show_fps => 0,
     font_fps => 'data/fps.fnt',
     title => 'SDL::App::FPS',
     debug => 0,
@@ -251,7 +251,7 @@ sub _init
     };
   foreach my $key (qw/
      useopengl width height depth fullscreen debug font_console
-     max_fps time_warp resizeable title showfps useconsole font_fps
+     max_fps time_warp resizeable title show_fps useconsole font_fps
     /) 
     {
     if ($key =~ /(.+)\./)
@@ -320,7 +320,7 @@ sub _parse_command_line
   my $cmd = {}; my $input = {};
   # override options with command line arguments
   foreach my $key (qw/
-    fullscreen resizeable useopengl useconsole showfps
+    fullscreen resizeable useopengl useconsole show_fps
     /)
     {
     $input->{"$key!"} = \$cmd->{$key};
@@ -420,8 +420,9 @@ sub _resized
 
   my $app = $self->{_app};
   my $opt = $app->{options};
-  $app->{width} = SDL::ResizeEventW($event->{-event}) || 16; 
-  $app->{height} = SDL::ResizeEventH($event->{-event}) || 16;
+
+  $app->{height} = $event->resize_h() || 16;
+  $app->{width} = $event->resize_w() || 16;
 
   $app->{app}->resize($app->{width},$app->{height});
 
@@ -760,7 +761,7 @@ sub _next_frame
 
   my $opt = $app->{options};
   $app->{console}->render($app->{current_time}) if $opt->{useconsole};
-  $self->_show_fps() if $opt->{showfps};
+  $self->_show_fps() if $opt->{show_fps};
 
   SDL::GLSwapBuffers() if $opt->{useopengl};
 
@@ -1418,7 +1419,7 @@ sub watch_event
       }
     my ($type,$key) = char2type_kind($args->{$name});
     print "binding event $name to $args->{$name} ($type, $key)\n"
-      if $opt->{debug} != 0;
+;#      if $opt->{debug} != 0;
     $opt->{bindings}->{$type}->{$key} = $name;
     $self->{_app}->{bound_to}->{$name} = $args->{name};
     my $sub;
@@ -1527,22 +1528,23 @@ sub _show_fps
   my $app = $self->{_app};
   my $opt = $app->{options};
   
-  return unless ($opt->{useopengl} && $opt->{showfps});
+  return unless ($opt->{useopengl} && $opt->{show_fps});
 
   $app->{fps_font}->pre_output();
   my $string = int($app->{current_fps}). " fps";
   my $y = 3;
   my $x = 5;
-  if ($opt->{showfps} == 1)
+  my $show_fps = $opt->{show_fps};
+  if ($show_fps == 1)
     {
     $y = $app->{height} - $app->{fps_font}->char_height() - 3;
     }
-  elsif ($opt->{showfps} == 3)
+  elsif ($show_fps == 3)
     {
     $y = $app->{height} - $app->{fps_font}->char_height() - 3;
     $x = $app->{width} - 3;
     }
-  elsif ($opt->{showfps} == 4)
+  elsif ($show_fps == 4)
     {
     $x = $app->{width} - 3; $y = 3;
     }
@@ -1559,25 +1561,25 @@ __END__
 
 =head1 NAME
 
-SDL::App::FPS - a parent class for FPS (framerate/s centric) SDL applications
+SDL::App::FPS - a framework for event-driven SDL games/applications
 
 =head1 SYNOPSIS
 
 Subclass SDL::App::FPS and override some methods:
 
 	package SDL::App::MyFPS;
-	use Exporter;
 	use strict;
 	use SDL::App::FPS;
-	use SDL::Event;
+	use SDL;
 
-	use vars qw/@ISA/;
-	@ISA = qw/SDL::App::FPS/;
+	use base qw/SDL::App::FPS/;
 
         # override the method draw_frame with something to draw
 	sub draw_frame
           {
 	  my ($self,$current_time,$lastframe_time,$current_fps) = @_;
+
+	  ...
           }
 
         # override post_init_handler and add some event handlers
@@ -1589,9 +1591,9 @@ Subclass SDL::App::FPS and override some methods:
             {
             my $self = shift; $self->quit();
             } );
-	  # or easier for often-used events
-	  $self->watch_event( fullscreen => SDLK_f, pause => SDLK_p,
-			      quit => SDLK_q,
+	  # or easier for often-used events (note quoted 'SDLK_f'!)
+	  $self->watch_event( fullscreen => 'SDLK_f', pause => 'p',
+			      quit => 'SDLK_q',
 		 	    );
 	  # You can also specify the key/mousebutton bindings for these events
 	  # in the config file like "bind_event_fullscreen = f"
@@ -1604,17 +1606,21 @@ Then write a small script using SDL::App::MyFPS like this:
 	use strict;
 	use SDL::App::MyFPS;
 
-	# fill in here options or use Getopt::Long for command line
+	# fill in here default options if you like
 	my $options = { };
 
+	# create a new application including window
+ 	# automatically uses a config file or the command line:
 	my $app = SDL::App::MyFPS->new( $options );
+
+	# run the application, will exit when done
 	$app->main_loop();
 
 That's all!
 
 =head1 EXPORTS
 
-Three symbols on request, namely:
+Some symbols on request, namely:
 
         BUTTON_MOUSE_LEFT
         BUTTON_MOUSE_RIGHT
@@ -1639,10 +1645,10 @@ than a 3 Ghz PC system), but also changes in the speed of the system over
 time, for instance when a background process uses some CPU time or the
 complexity of the scene changes.
 
-In many old (especial DOS) games, like the famous Wing Commander series, the
-animation would be drawn simple as fast as the system could, meaning that if
-you would try to play such a game on a modern machine it we end before you
-had the chance to click a button, simple because it wizzes a couple 10,000
+In many old (especial DOS) games, like the famous I<Wing Commander> series,
+the animation would be drawn simple as fast as the system could, meaning that
+if you would try to play such a game on a modern machine it we end before you
+had the chance to click a button, simple because it wizzed a couple 10,000
 frames per second past your screen.
 
 While it is quite simple to restrict the maximum framerate possible, care
@@ -1682,7 +1688,8 @@ e.g. the number of milliseconds elapsed since the start of the application.
 To effectively decouple animation speed from FPS, get at each frame the
 current time, then move all objects (or animation sequences) according to
 their speed and display them at the location that matches the time at the
-start of the frame. See examples/ for an example on how to do this.
+start of the frame. See the C<examples/> directory for examples on how to do
+this.
 
 Note that it is better to draw all objects according to the time at the start
 of the frame, and not according to the time when you draw a particular object.
@@ -1709,9 +1716,9 @@ application to a crawl.
 Likewise a time warp of 2 let's the time pass twice as fast. There are
 virtually no restrictions to the time warp.
 
-For instance, a time warp greater than one let's the player pass boring
+For instance, a time warp greater than one lets the player pass boring
 moments in a game, for instance when you need to wait for certain events in
-a strategy game, like your factory beeing completed.
+a strategy game, like your next building beeing completed.
 
 Try to press the left (fast forward), right (slow motion) and middle (normal)
 mousebuttons in the example application and watch the effect.
@@ -1782,7 +1789,7 @@ simple add another event:
 	  $self->pause();
 	} );
 
-This would also alow the user to pause with 'P'.
+This would also allow the user to pause with 'P'.
 
 Event bindings can also be removed with L<del_event_handler()>, if so desired.
 
@@ -1796,8 +1803,8 @@ intervalls again.
 
 For these cases, C<SDL::App::FPS> features timers. These timers are different
 from the normal SDL::Timers in that they run in the application clock space,
-e.g. the time warp effects them. So if you application is in slow motion,
-the events triggers by the timers will still happen at the correct time.
+e.g. the time warp effects them. So if your application is in slow motion,
+the events triggers by the timers will still happen at the I<correct> time.
 
 =head2 Asyncronous Timers
 
@@ -1830,7 +1837,7 @@ The following methods should be overridden to make a usefull application:
 
 =item draw_frame()
 
-Responsible for drawing the current frame. It's first two parameters are the
+Responsible for drawing the current frame. Its first two parameters are the
 time (in ticks) at the start of the current frame, and the time at the
 start of the last frame. These times are warped according to C<time_warp()>,
 see there for an explanation on how this works.
@@ -1847,11 +1854,11 @@ The following methods can be overriden if so desired:
 
 =item pre_init_handler()
 
-Called by L<new()> just before the creating the SDL application and window.
+Called by L<new()> just B<before> the creating the SDL application and window.
 
 =item post_init_handler()
 
-Called by L<new()> just after the creating the SDL application and window.
+Called by L<new()> just B<after> the creating the SDL application and window.
 
 =item quit_handler()
 
@@ -1891,7 +1898,7 @@ new() gets a hash ref with options, the following options are supported:
 	fullscreen	0 = windowed, 1 - fullscreen
 	title		Name of the app, will be the window title
 	useconsole	enable a console (which can be shown/hidden)
-	showfps		print fps (0 - disable, 1 upper-left, 2 lower-left,
+	show_fps	print fps (0 - disable, 1 upper-left, 2 lower-left,
 			3 lower-right, 4 upper-right corner)
 	font_fps	name of the .fnt file containing the config for the
 			font for the FPS
@@ -1899,7 +1906,7 @@ new() gets a hash ref with options, the following options are supported:
 			font for the Console
 	debug		0: disable, 1 (or higher for more): print debug info
 
-C<useconsole> and C<showfps> currently only work in conjunction with
+C<useconsole> and C<show_fps> currently only work in conjunction with
 C<useopengl>.
 
 new() also parses the command line options via Getopt::long, meaning that
@@ -1909,7 +1916,7 @@ new() also parses the command line options via Getopt::long, meaning that
 will work as intended. If you want to prevent command line parsing, simple
 clear C<@ARGV = ()> before calling new().
 
-Please note that, due to the resulution of the timer, the maximum achivable FPS
+Please note that, due to the resolution of the timer, the maximum achivable FPS
 with capping is about 200-300 FPS even with an empty draw routine. Of course,
 my machine could do about 50000 FPS; but then it hogs 100% of the CPU. Thus
 the framerate capping might not be accurate and cap the rate at a much lower
@@ -1959,8 +1966,8 @@ or $self->quit() was called.
 
 =item watch_event
 
-	$app->watch_event ( fullscreen => SDLK_f, pause => SDLK_p, 
-			    freeze => SDL_SPACE,
+	$app->watch_event ( fullscreen => 'SDLK_f', pause => 'p',
+			    freeze => 'SDL_SPACE',
 			  );
 
 C<watch_event> is a convenience method, that let's you add often-used event
@@ -1981,7 +1988,7 @@ handlers to some default events. The following are supported:
 				it as BMP
 
 
-Instead of SDLK_foo, you can also pass for key one of the B<strings> 'LMB',
+Instead of C<SDLK_foo>, you can also pass for key one of the B<strings> 'LMB',
 'RMB' or 'MMB' meaning the left, right and middle mouse button. Also possible
 are the strings 'MWD' and 'MWU', meaning mouse wheel down and up, respectively. 
 
@@ -2299,7 +2306,7 @@ time a certain date and time.
 
 	$app->set_clock(1,12,30);	# set current time to day 1, 12:30
 
-Set's the current time to a specific date and time so that L<get_clock()>
+Sets the current time to a specific date and time so that L<get_clock()>
 returns the proper format.
 
 =item clock_to_ticks
@@ -2373,14 +2380,14 @@ automatically by the thing itself.
 
 =item *
 
-C<useconsole> and C<showfps> currently only work in conjunction with
+C<useconsole> and C<show_fps> currently work only in conjunction with
 C<useopengl>.
 
 =back
 
 =head1 AUTHORS
 
-(c) 2002, 2003, Tels <http://bloodgate.com/>
+(c) 2002, 2003, 2006, Tels <http://bloodgate.com/>
 
 =head1 SEE ALSO
 

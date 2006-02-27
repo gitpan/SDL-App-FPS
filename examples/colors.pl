@@ -18,7 +18,7 @@ use SDL::App::FPS::MyColors;
 my $options = { width => 640, height => 480, max_fps => 15};
 
 print
-  "Color demo v0.01 (C) 2003 by Tels <http://Bloodgate.com/>\n\n";
+  "Color demo v0.02 (C) 2003,2006 by Tels <http://Bloodgate.com/>\n\n";
 
 my $app = SDL::App::FPS::MyColors->new( $options );
 $app->main_loop();

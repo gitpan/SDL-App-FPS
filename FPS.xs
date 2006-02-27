@@ -35,7 +35,7 @@ PROTOTYPES: DISABLE
 # _delay() - if the time between last and this frame was too short, delay the
 #            app a bit. Also returns current time corrected by base_ticks.
 
-SV*
+void
 _delay(min_time,base_ticks)
 	unsigned int	min_time
 	unsigned int	base_ticks
@@ -141,28 +141,28 @@ _delay(min_time,base_ticks)
     XSRETURN(3);
 
 SV*
-min_fps(SV* class)
+min_fps(myclass)
     CODE:
       RETVAL = newSVnv(min_fps);
     OUTPUT:
       RETVAL
 
 SV*
-max_fps(SV* class)
+max_fps(myclass)
     CODE:
       RETVAL = newSVnv(max_fps);
     OUTPUT:
       RETVAL
 
 SV*
-max_frame_time(SV* class)
+max_frame_time(myclass)
     CODE:
       RETVAL = newSViv(max_frame_time);
     OUTPUT:
       RETVAL
 
 SV*
-min_frame_time(SV* class)
+min_frame_time(myclass)
     CODE:
       RETVAL = newSViv(min_frame_time);
     OUTPUT:

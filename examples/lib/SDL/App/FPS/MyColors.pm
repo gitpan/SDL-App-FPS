@@ -3,16 +3,15 @@
 
 package SDL::App::FPS::MyColors;
 
-# (C) 2002 by Tels <http://bloodgate.com/>
+# (C) 2002, 2006 by Tels <http://bloodgate.com/>
 
 use strict;
 
 use SDL::App::FPS;
-use SDL::Event;
+use SDL;
 use SDL::App::FPS::Color qw/BLACK WHITE GRAY darken lighten blend/;
 
-use vars qw/@ISA/;
-@ISA = qw/SDL::App::FPS/;
+use base qw/SDL::App::FPS/;
 
 ##############################################################################
 
@@ -160,7 +159,7 @@ sub _draw_colors
     }
   # color A => color B (sinus)
   $x = 20;
-  my $start = BLACK;
+  $start = BLACK;
   for my $col (qw/RED BLUE GREEN WHITE/)
     {
     my $c = SDL::App::FPS::Color->$col();

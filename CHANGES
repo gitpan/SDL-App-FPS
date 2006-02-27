@@ -1,6 +1,26 @@
 
+Revision history for SDL::App::FPS:
+
+2006-02-27 v0.21 Tels - 310 tests
+  * make to work with SDL_perl 1.2.3:
+    + resizing didn't work anymore
+    + costant exporting was borked, needs "use SDL;" not "use SDL::Event;"
+  * bundle Module::Install
+  * remove the NEW file
+  * fix tests failing due to timer problems
+  * fix XS code:
+    + remove unused RETVAL from _delay()
+    + avoid warnings about unused params, rename "class" to "myclass"
+  * option "show_fps" is really "show_fps" (not "showfps")
+  * fix speling and nits in doc
+  * use better tagline for CPAN indexing
+  * include examples/lib/SDL/OpenGL/Cube.pm since normal SDL misses it
+  * Mandelbroth example:
+    + modify the title to show % done
+    + re-use a SDL::Color object for more speed
+
 ############################################################################## 
-SDL::App::FPS:
+Older revision history:
 
 2002-12-25 v0.01 Tels - 3 tests (not released)
  * rewrote test.pl into package SDL::App::FPS complete with doc and a testfile

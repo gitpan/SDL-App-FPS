@@ -15,7 +15,7 @@ BEGIN
 
 use SDL::App::FPS::MyMandel;
 
-print "SDL Mandelbrot (C) v0.02 2002,2003 by Tels <http://Bloodgate.com/>\n\n";
+print "SDL Mandelbrot (C) v0.03 2002,2003,2006 by Tels <http://Bloodgate.com/>\n\n";
 
 if (SDL::App::FPS::MyMandel::use_perl() == 0)
   {

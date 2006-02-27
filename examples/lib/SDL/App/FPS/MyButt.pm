@@ -3,7 +3,7 @@
 
 package SDL::App::FPS::MyButt;
 
-# (C) 2002 by Tels <http://bloodgate.com/>
+# (C) 2002,2006 by Tels <http://bloodgate.com/>
 
 use strict;
 
@@ -12,7 +12,7 @@ use SDL::App::FPS qw/
   BUTTON_MOUSE_MIDDLE
   BUTTON_MOUSE_RIGHT
   /;
-use SDL::Event;
+use SDL;
 use SDL::App::FPS::Button qw/
   BUTTON_DOWN
   BUTTON_RECTANGULAR
@@ -179,7 +179,7 @@ sub post_init_handler
   
   # set up the event handlers
   $self->watch_event ( 
-    quit => SDLK_q, fullscreen => SDLK_f, freeze => SDLK_SPACE,
+    quit => 'q', fullscreen => 'f', freeze => 'SDLK_SPACE',
    );
 
   $self->{won} = 0;

@@ -164,7 +164,7 @@ sub post_init_handler
   
   # set up the event handlers
   $self->watch_event ( 
-    quit => SDLK_q, fullscreen => SDLK_f, freeze => SDLK_SPACE,
+    quit => 'SDLK_q', fullscreen => 'SDLK_f', freeze => 'SDLK_SPACE',
    );
 
   $self->add_event_handler (SDL_KEYDOWN, SDLK_b, 
